@@ -1,0 +1,35 @@
+site_name: Elements AI Necklace
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+  - Frontend:
+    - Overview: frontend/overview.md
+  - Backend:
+    - Python Service: backend/python-service.md
+    - Node Service: backend/node-service.md
+  - Firmware:
+    - Overview: firmware/overview.md
+  - API Reference:
+    - API Docs: api/reference.md
+
+repo_url: https://github.com/yourusername/Elements-AI-neclace 
