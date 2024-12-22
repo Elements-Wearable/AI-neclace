@@ -188,6 +188,33 @@
 				"problemMatcher": [
 					"$gcc"
 				]
+			},
+			{
+				"label": "Serve Documentation",
+				"type": "shell",
+				"command": "mkdocs serve",
+				"options": {
+					"cwd": "${workspaceFolder}/docs"
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Build Documentation",
+				"type": "shell",
+				"command": "mkdocs build",
+				"options": {
+					"cwd": "${workspaceFolder}/docs"
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Deploy Documentation",
+				"type": "shell",
+				"command": "mkdocs gh-deploy --force",
+				"options": {
+					"cwd": "${workspaceFolder}/docs"
+				},
+				"problemMatcher": []
 			}
 		]
 	}
