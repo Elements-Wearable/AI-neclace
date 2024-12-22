@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  workspace:
+    build:
+      context: .
+      dockerfile: base.Dockerfile
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    network_mode: service:dev-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+    volumes:
+      - ../frontend:/workspace/frontend:cached
+    command: sleep infinity
+    network_mode: service:dev-network
+
+  python-backend:
+    build:
+      context: .
+      dockerfile: python-backend.Dockerfile
+    volumes:
+      - ../backend/python-service:/workspace/backend/python-service:cached
+    command: sleep infinity
+    network_mode: service:dev-network
+
+  node-backend:
+    build:
+      context: .
+      dockerfile: node-backend.Dockerfile
+    volumes:
+      - ../backend/node-service:/workspace/backend/node-service:cached
+    command: sleep infinity
+    network_mode: service:dev-network
+
+  firmware:
+    build:
+      context: .
+      dockerfile: firmware.Dockerfile
+    volumes:
+      - ../firmware:/workspace/firmware:cached
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    privileged: true
+    command: sleep infinity
+    network_mode: service:dev-network
+
+  dev-network:
+    image: alpine:latest
+    command: sleep infinity
