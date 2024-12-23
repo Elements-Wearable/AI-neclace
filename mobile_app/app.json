@@ -13,16 +13,45 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio",
+          "fetch",
+          "processing"
+        ],
+        "NSMicrophoneUsageDescription": "Allow Elements AI Necklace to access your microphone for voice recording.",
+        "UIRequiresPersistentWiFi": true,
+        "NSLocationWhenInUseUsageDescription": "This app needs access to location to add geotags to your transcriptions.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to add geotags to your transcriptions when recording in the background."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "FOREGROUND_SERVICE",
+        "WAKE_LOCK",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Elements AI Necklace to access your microphone for voice recording.",
+          "backgroundModes": [
+            "audio"
+          ]
+        }
+      ]
+    ]
   }
 }
