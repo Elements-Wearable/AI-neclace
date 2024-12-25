@@ -1,664 +1,22 @@
 import { Audio } from 'expo-av';
-import * as BackgroundFetch from 'expo-background-fetch';
-import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
 import React from 'react';
-import { ActivityIndicator, AppState, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  AppState,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import * as storage from '../services/storage';
 
-// Add your Deepgram API key here
-const DEEPGRAM_API_KEY = '017aecbe395694de283f91aa6824b178ac7ba37b';
-const CHUNK_DURATION = 5000; // Duration of each chunk in milliseconds (5 seconds)
+// Constants
+const DEEPGRAM_API_KEY = '1b44c88da4fd678d433ab3a10326be8621e49621';
+const CHUNK_DURATION = 5000;
 const BACKGROUND_RECORDING_TASK = 'BACKGROUND_RECORDING_TASK';
+const OPENAI_API_KEY = 'sk-proj-48l1o...'; // Your API key
 
-// Register background task
-TaskManager.defineTask(BACKGROUND_RECORDING_TASK, async () => {
-  try {
-    return BackgroundFetch.BackgroundFetchResult.NewData;
-  } catch (error) {
-    return BackgroundFetch.BackgroundFetchResult.Failed;
-  }
-});
-
-// Move formatTime outside of HomeScreen component
-const formatTime = (seconds) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-// Create a separate History component
-const HistoryView = ({ isVisible, onClose, formatTime }) => {
-  const [historyData, setHistoryData] = React.useState([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    if (isVisible) {
-      loadHistory();
-    }
-  }, [isVisible]);
-
-  const loadHistory = async () => {
-    try {
-      setIsLoading(true);
-      const allTranscriptions = await storage.getTranscriptions();
-      const recent = allTranscriptions
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, 5);
-      setHistoryData(recent);
-    } catch (error) {
-      console.error('Error loading history:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (!isVisible) return null;
-
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={true}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Recent Conversations</Text>
-          {isLoading ? (
-            <ActivityIndicator size="large" color="#6200ee" />
-          ) : (
-            <ScrollView style={styles.historyList}>
-              {historyData.map((item) => (
-                <View key={item.id} style={styles.historyItem}>
-                  <Text style={styles.historyDate}>
-                    {new Date(item.timestamp).toLocaleString()}
-                  </Text>
-                  
-                  <View style={styles.metadataContainer}>
-                    <Text style={styles.metadataTitle}>Details:</Text>
-                    {item.metadata?.recording?.duration && (
-                      <Text style={styles.metadataText}>
-                        Duration: {formatTime(item.metadata.recording.duration)}
-                      </Text>
-                    )}
-                    {item.metadata?.stats && (
-                      <>
-                        <Text style={styles.metadataText}>
-                          Speakers: {item.metadata.stats.speakerCount || 0}
-                        </Text>
-                        <Text style={styles.metadataText}>
-                          Words: {item.metadata.stats.totalWords || 0}
-                        </Text>
-                        {item.metadata.stats.averageConfidence && (
-                          <Text style={styles.metadataText}>
-                            Accuracy: {Math.round(item.metadata.stats.averageConfidence * 100)}%
-                          </Text>
-                        )}
-                      </>
-                    )}
-                    {item.metadata?.location?.coords && (
-                      <View style={styles.locationContainer}>
-                        <Text style={styles.metadataTitle}>Location:</Text>
-                        {item.metadata.location.coords.latitude && (
-                          <Text style={styles.metadataText}>
-                            Lat: {item.metadata.location.coords.latitude.toFixed(4)}
-                          </Text>
-                        )}
-                        {item.metadata.location.coords.longitude && (
-                          <Text style={styles.metadataText}>
-                            Long: {item.metadata.location.coords.longitude.toFixed(4)}
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.historyUtterances}>
-                    {item.utterances?.map((utterance, uIndex) => (
-                      <View key={`${item.id}-${uIndex}`} style={styles.historyUtterance}>
-                        <Text style={styles.historySpeaker}>
-                          {utterance.speaker || 'Unknown'}
-                        </Text>
-                        <Text style={styles.historyText}>
-                          {utterance.text}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-          <TouchableOpacity 
-            style={styles.closeButton}
-            onPress={onClose}
-          >
-            <Text style={styles.buttonText}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-export default function HomeScreen() {
-  const [recording, setRecording] = React.useState();
-  const [isRecording, setIsRecording] = React.useState(false);
-  const [isTranscribing, setIsTranscribing] = React.useState(false);
-  const [transcription, setTranscription] = React.useState([]);
-  const [speakerColors, setSpeakerColors] = React.useState({});
-  const recordingInterval = React.useRef(null);
-  const transcriptionQueue = React.useRef([]);
-  const isProcessing = React.useRef(false);
-  const scrollViewRef = React.useRef(null);
-  const appState = React.useRef(AppState.currentState);
-  const [isBackgroundRecording, setIsBackgroundRecording] = React.useState(false);
-  const [location, setLocation] = React.useState(null);
-  const [recentHistory, setRecentHistory] = React.useState([]);
-  const [isHistoryVisible, setIsHistoryVisible] = React.useState(false);
-  const isUnloading = React.useRef(false);
-  const lastProcessedDuration = React.useRef(0);
-  const [isHistoryLoading, setIsHistoryLoading] = React.useState(false);
-  const [showHistory, setShowHistory] = React.useState(false);
-
-  // Generate a random color for each new speaker
-  const getColorForSpeaker = (speakerId) => {
-    if (!speakerColors[speakerId]) {
-      const colors = [
-        '#6200ee', '#03dac6', '#018786', '#b00020', 
-        '#3700b3', '#03dac5', '#018786', '#b00020'
-      ];
-      const existingColors = Object.values(speakerColors);
-      const availableColors = colors.filter(color => !existingColors.includes(color));
-      const newColor = availableColors[0] || colors[0];
-      setSpeakerColors(prev => ({ ...prev, [speakerId]: newColor }));
-      return newColor;
-    }
-    return speakerColors[speakerId];
-  };
-
-  const processTranscriptionQueue = async () => {
-    if (isProcessing.current || transcriptionQueue.current.length === 0) {
-      return;
-    }
-
-    isProcessing.current = true;
-    
-    try {
-      while (transcriptionQueue.current.length > 0) {
-        const uri = transcriptionQueue.current[0]; // Peek at the first item
-        
-        if (!uri) {
-          transcriptionQueue.current.shift(); // Remove invalid URI
-          continue;
-        }
-
-        try {
-          await transcribeAudio(uri);
-          transcriptionQueue.current.shift(); // Remove only after successful transcription
-        } catch (error) {
-          console.error('Error processing transcription:', error);
-          // Remove failed item to prevent infinite loop
-          transcriptionQueue.current.shift();
-        }
-      }
-    } catch (error) {
-      console.error('Queue processing error:', error);
-    } finally {
-      isProcessing.current = false;
-    }
-  };
-
-  // Handle app state changes
-  React.useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      if (
-        appState.current.match(/inactive|background/) && 
-        nextAppState === 'active' && 
-        isBackgroundRecording
-      ) {
-        // App has come to foreground while recording
-        console.log('App has come to foreground, continuing recording');
-      }
-
-      appState.current = nextAppState;
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [isBackgroundRecording]);
-
-  const setupAudioSession = async () => {
-    try {
-      console.log('Requesting audio permissions...');
-      const permission = await Audio.requestPermissionsAsync();
-      if (!permission.granted) {
-        throw new Error('Audio permission not granted');
-      }
-      
-      console.log('Setting up audio mode...');
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        interruptionModeIOS: 1,
-        interruptionModeAndroid: 1,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
-
-      if (Platform.OS === 'ios') {
-        await registerBackgroundTask();
-      }
-      console.log('Audio session setup complete');
-    } catch (error) {
-      console.error('Error setting up audio session:', error);
-      throw error; // Re-throw to handle in startRecording
-    }
-  };
-
-  const registerBackgroundTask = async () => {
-    try {
-      await BackgroundFetch.registerTaskAsync(BACKGROUND_RECORDING_TASK, {
-        minimumInterval: 1,
-        stopOnTerminate: false,
-        startOnBoot: true,
-      });
-    } catch (error) {
-      console.error('Task registration failed:', error);
-    }
-  };
-
-  const startNewRecordingChunk = async () => {
-    try {
-      const newRecording = new Audio.Recording();
-      await newRecording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await newRecording.startAsync();
-      setRecording(newRecording);
-    } catch (error) {
-      console.error('Error starting new chunk:', error);
-      await cleanupRecording();
-    }
-  };
-
-  const startRecording = async () => {
-    try {
-      // First ensure any existing recording is properly cleaned up
-      await cleanupRecording();
-
-      // Setup audio session
-      await setupAudioSession();
-
-      console.log('Initializing new recording...');
-      const newRecording = new Audio.Recording();
-      await newRecording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      
-      console.log('Recording prepared, starting...');
-      await newRecording.startAsync();
-      console.log('Recording started successfully');
-
-      // Update states only after successful start
-      setRecording(newRecording);
-      setIsRecording(true);
-      setIsBackgroundRecording(true);
-
-      // Set up chunking interval
-      recordingInterval.current = setInterval(async () => {
-        try {
-          if (!recording) return;
-
-          const uri = recording.getURI();
-          if (uri) {
-            await recording.stopAndUnloadAsync();
-            transcriptionQueue.current.push(uri);
-            await processTranscriptionQueue();
-            await startNewRecordingChunk();
-          }
-        } catch (error) {
-          console.error('Error in recording interval:', error);
-          await cleanupRecording();
-        }
-      }, CHUNK_DURATION);
-
-    } catch (err) {
-      console.error('Failed to start recording:', err);
-      await cleanupRecording();
-    }
-  };
-
-  const cleanupRecording = async () => {
-    try {
-      if (recordingInterval.current) {
-        clearInterval(recordingInterval.current);
-        recordingInterval.current = null;
-      }
-
-      if (recording) {
-        try {
-          const status = await recording.getStatusAsync();
-          if (status.canRecord || status.isRecording) {
-            await recording.stopAndUnloadAsync();
-          }
-        } catch (error) {
-          console.log('Error stopping recording during cleanup:', error);
-        }
-      }
-
-      setRecording(null);
-      setIsRecording(false);
-      setIsBackgroundRecording(false);
-      isUnloading.current = false;
-      isProcessing.current = false;
-    } catch (error) {
-      console.error('Error in cleanup:', error);
-    }
-  };
-
-  const stopRecording = async () => {
-    try {
-      if (!recording) return;
-
-      // Get URI before stopping
-      const uri = recording.getURI();
-      
-      // Stop recording and clean up
-      await cleanupRecording();
-
-      // Process final chunk if we have one
-      if (uri) {
-        transcriptionQueue.current.push(uri);
-        await processTranscriptionQueue();
-      }
-
-      if (Platform.OS === 'ios') {
-        try {
-          await BackgroundFetch.unregisterTaskAsync(BACKGROUND_RECORDING_TASK);
-        } catch (error) {
-          console.error('Error unregistering background task:', error);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to stop recording:', err);
-      await cleanupRecording();
-    }
-  };
-
-  const clearTranscription = () => {
-    setTranscription([]);
-  };
-
-  const transcribeAudio = async (uri) => {
-    if (!uri) {
-      console.log('No URI provided for transcription');
-      return;
-    }
-
-    try {
-      setIsTranscribing(true);
-      
-      const response = await fetch(uri);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch audio file: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      if (blob.size < 1024) {
-        console.log('Audio chunk too small, skipping...');
-        return;
-      }
-
-      console.log('Sending audio chunk to Deepgram...', blob.size, 'bytes');
-
-      const dgResponse = await fetch(
-        'https://api.deepgram.com/v1/listen?' +
-        'model=whisper-large&' +
-        'diarize=true&' +
-        'punctuate=true&' +
-        'utterances=true&' +
-        'numerals=true&' +
-        'smart_format=true',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Token ${DEEPGRAM_API_KEY}`,
-            'Content-Type': 'audio/m4a',
-          },
-          body: blob
-        }
-      );
-
-      if (!dgResponse.ok) {
-        throw new Error(`HTTP error! status: ${dgResponse.status}`);
-      }
-
-      const data = await dgResponse.json();
-      
-      const utterances = data.results?.utterances || [];
-      const processedTranscription = utterances
-        .map((utterance, index) => {
-          const speakerId = utterance.speaker || index;
-          return {
-            id: `${Date.now()}-${index}`, // Unique ID for each utterance
-            speaker: `Speaker ${speakerId}`,
-            speakerId: speakerId,
-            text: utterance.transcript,
-            confidence: utterance.confidence,
-            timeStart: utterance.start,
-            timeEnd: utterance.end,
-            words: utterance.words || [],
-            timestamp: new Date().toISOString(),
-          };
-        })
-        .filter(utterance => utterance.text.trim().length > 0);
-
-      if (processedTranscription.length > 0) {
-        // Get current location before saving
-        let currentLocation = location;
-        try {
-          // Get a fresh location reading
-          const freshLocation = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced
-          });
-          currentLocation = freshLocation;
-        } catch (error) {
-          console.log('Could not get fresh location:', error);
-        }
-
-        // Save to AsyncStorage with location data
-        await storage.saveTranscription({
-          utterances: processedTranscription,
-          totalDuration: processedTranscription.reduce(
-            (max, u) => Math.max(max, u.timeEnd),
-            0
-          ),
-          deviceInfo: {
-            platform: Platform.OS,
-            version: Platform.Version,
-          },
-          settings: {
-            model: 'whisper-large',
-            chunkDuration: CHUNK_DURATION,
-          },
-          location: currentLocation ? {
-            coords: {
-              latitude: currentLocation.coords.latitude,
-              longitude: currentLocation.coords.longitude,
-              accuracy: currentLocation.coords.accuracy,
-              altitude: currentLocation.coords.altitude,
-              heading: currentLocation.coords.heading,
-              speed: currentLocation.coords.speed,
-            },
-            timestamp: currentLocation.timestamp,
-          } : null,
-          audioUri: uri
-        });
-        
-        setTranscription(prev => [...prev, ...processedTranscription]);
-      }
-    } catch (error) {
-      console.error('Transcription error:', error);
-      setTranscription(prev => [...prev, {
-        id: `error-${Date.now()}`,
-        speaker: 'System',
-        speakerId: 'error',
-        text: `Error: ${error.message || 'Failed to transcribe audio'}`,
-        timestamp: new Date().toISOString(),
-      }]);
-    } finally {
-      setIsTranscribing(false);
-    }
-  };
-
-  const scrollToBottom = () => {
-    if (scrollViewRef.current) {
-      scrollViewRef.current.scrollToEnd({ animated: true });
-    }
-  };
-
-  // Add this effect to auto-scroll when new transcriptions arrive
-  React.useEffect(() => {
-    if (transcription.length > 0) {
-      scrollToBottom();
-    }
-  }, [transcription]);
-
-  // Replace loadRecentHistory with simpler toggle
-  const toggleHistory = () => {
-    setShowHistory(!showHistory);
-  };
-
-  // Add location initialization
-  React.useEffect(() => {
-    const initLocation = async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          console.log('Location permission denied');
-          return;
-        }
-
-        // Start location updates
-        const locationSubscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Balanced,
-            timeInterval: 10000, // Update every 10 seconds
-            distanceInterval: 10, // Update every 10 meters
-          },
-          (newLocation) => {
-            setLocation(newLocation);
-          }
-        );
-
-        // Cleanup subscription
-        return () => {
-          if (locationSubscription) {
-            locationSubscription.remove();
-          }
-        };
-      } catch (error) {
-        console.error('Error initializing location:', error);
-      }
-    };
-
-    initLocation();
-  }, []);
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome to Elements AI Necklace</Text>
-      
-      <ScrollView 
-        ref={scrollViewRef}
-        style={styles.scrollView} 
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={[styles.button, isRecording && styles.recordingButton]}
-            onPress={isRecording ? stopRecording : startRecording}
-            disabled={isTranscribing}
-          >
-            <Text style={styles.buttonText}>
-              {isRecording ? 'Stop Recording' : 'Start Recording'}
-            </Text>
-          </TouchableOpacity>
-          
-          {isTranscribing && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#6200ee" />
-              <Text style={styles.loadingText}>Transcribing audio...</Text>
-            </View>
-          )}
-          
-          {transcription.length > 0 && !isTranscribing && (
-            <View style={styles.transcriptionContainer}>
-              <Text style={styles.transcriptionTitle}>Conversation:</Text>
-              {transcription.map((utterance) => (
-                <View 
-                  key={utterance.id} 
-                  style={[
-                    styles.utteranceContainer,
-                    { borderLeftColor: getColorForSpeaker(utterance.speakerId) }
-                  ]}
-                >
-                  <View style={styles.utteranceHeader}>
-                    <Text style={[
-                      styles.speakerText,
-                      { color: getColorForSpeaker(utterance.speakerId) }
-                    ]}>
-                      {utterance.speaker}
-                    </Text>
-                    <Text style={styles.timeText}>
-                      {formatTime(utterance.timeStart)}
-                    </Text>
-                  </View>
-                  <Text style={styles.transcriptionText}>{utterance.text}</Text>
-                  {utterance.confidence && (
-                    <Text style={styles.confidenceText}>
-                      Confidence: {Math.round(utterance.confidence * 100)}%
-                    </Text>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
-
-          <TouchableOpacity 
-            style={[styles.button, showHistory && styles.activeButton]}
-            onPress={toggleHistory}
-            disabled={isTranscribing}
-          >
-            <Text style={styles.buttonText}>Recent History</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.button}
-            disabled={isTranscribing}
-          >
-            <Text style={styles.buttonText}>Settings</Text>
-          </TouchableOpacity>
-          {transcription.length > 0 && (
-            <TouchableOpacity 
-              style={[styles.button, styles.clearButton]}
-              onPress={clearTranscription}
-              disabled={isRecording || isTranscribing}
-            >
-              <Text style={styles.buttonText}>Clear Conversation</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </ScrollView>
-
-      <HistoryView 
-        isVisible={showHistory}
-        onClose={() => setShowHistory(false)}
-        formatTime={formatTime}
-      />
-    </View>
-  );
-}
-
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -670,45 +28,39 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 40,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
   buttonContainer: {
-    width: '100%',
-    gap: 20,
+    gap: 10,
   },
   button: {
     backgroundColor: '#6200ee',
     padding: 15,
     borderRadius: 8,
-    width: '100%',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   recordingButton: {
     backgroundColor: '#dc3545',
   },
-  buttonText: {
-    color: '#fff',
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   transcriptionContainer: {
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 8,
-    width: '100%',
+    marginTop: 20,
+    gap: 10,
   },
   transcriptionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 12,
+    color: '#333',
+    marginBottom: 10,
   },
   utteranceContainer: {
-    marginBottom: 16,
     borderLeftWidth: 3,
     paddingLeft: 12,
     backgroundColor: '#ffffff',
@@ -744,42 +96,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontStyle: 'italic',
   },
-  loadingContainer: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#6200ee',
-    fontSize: 16,
-  },
-  recordingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    backgroundColor: 'rgba(220, 53, 69, 0.1)',
-  },
-  recordingDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#dc3545',
-    marginRight: 8,
-    opacity: 1,
-    // Add blinking animation
-    animationName: 'blink',
-    animationDuration: '1s',
-    animationIterationCount: 'infinite',
-  },
-  recordingText: {
-    color: '#dc3545',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  clearButton: {
-    backgroundColor: '#6c757d',
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -801,71 +117,881 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6200ee',
   },
-  historyList: {
-    maxHeight: '85%',
-  },
-  historyItem: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 10,
-  },
-  historyDate: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  historyUtterances: {
-    gap: 8,
-  },
-  historyUtterance: {
-    backgroundColor: 'white',
-    padding: 10,
-    borderRadius: 6,
-    borderLeftWidth: 3,
-    borderLeftColor: '#6200ee',
-  },
-  historySpeaker: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#6200ee',
-    marginBottom: 4,
-  },
-  historyText: {
-    fontSize: 14,
-    color: '#333',
-  },
   closeButton: {
     backgroundColor: '#6200ee',
     padding: 12,
     borderRadius: 8,
+    alignItems: 'center',
     marginTop: 15,
   },
-  metadataContainer: {
-    backgroundColor: '#eee',
+  recordingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 10,
-    borderRadius: 6,
-    marginBottom: 10,
+    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+    borderRadius: 4,
   },
-  metadataTitle: {
+  recordingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#dc3545',
+    marginRight: 8,
+  },
+  recordingText: {
+    color: '#dc3545',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+  historyList: {
+    maxHeight: '85%',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#6200ee',
+    fontSize: 16,
+  },
+  summaryModal: {
+    backgroundColor: 'white',
+    maxHeight: '70%',
+  },
+  summaryContainer: {
+    flex: 1,
+    marginVertical: 15,
+  },
+  summaryTimestamp: {
+    fontSize: 12,
     color: '#666',
     marginBottom: 4,
   },
-  metadataText: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 2,
+  summaryStats: {
+    fontSize: 14,
+    color: '#4CAF50',
+    marginBottom: 15,
+    fontWeight: '500',
   },
-  locationContainer: {
-    backgroundColor: '#e3f2fd',
-    padding: 10,
-    borderRadius: 6,
+  summaryTextContainer: {
+    maxHeight: 300,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 15,
+  },
+  summaryText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
+  },
+  summaryCloseButton: {
+    backgroundColor: '#4CAF50',
+    marginTop: 20,
+  },
+  errorContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#dc3545',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  processingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+    borderRadius: 4,
     marginTop: 8,
   },
-  activeButton: {
-    backgroundColor: '#3700b3', // Darker shade when active
+  processingText: {
+    marginLeft: 8,
+    color: '#6200ee',
+    fontSize: 14,
   },
-}); 
+  disabledButton: {
+    backgroundColor: '#e0e0e0',
+    opacity: 0.7,
+  },
+  taskQueueIndicator: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+    padding: 8,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  taskQueueText: {
+    fontSize: 12,
+    color: '#6200ee',
+    marginLeft: 4,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  statusItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginBottom: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  activeStatus: {
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  mainContent: {
+    flex: 1,
+  },
+  transcriptionSection: {
+    flex: 1,
+    maxHeight: '50%', // Limit height
+    marginTop: 20,
+  },
+  buttonsSection: {
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  historyContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  timelineContainer: {
+    flex: 1,
+  },
+  timelineDate: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  timelineLine: {
+    width: 2,
+    backgroundColor: '#6200ee',
+    marginRight: 15,
+  },
+  timelineContent: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  timelineTime: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 5,
+  },
+  topSection: {
+    paddingTop: 40,
+    paddingBottom: 20,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  recordButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    marginBottom: 16,
+  },
+  recordButtonInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#6200ee',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  recordDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+  },
+  recordingActive: {
+    backgroundColor: '#dc3545',
+  },
+  recordingDot: {
+    width: 20,
+    height: 20,
+  },
+  transcriptionWrapper: {
+    flex: 1,
+    marginTop: 16,
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  navButton: {
+    flex: 1,
+    paddingVertical: 12,
+    marginHorizontal: 5,
+    backgroundColor: '#6200ee',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  navButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  processingButton: {
+    backgroundColor: '#FFA000', // Orange color for processing state
+  },
+  recordingStatus: {
+    fontSize: 15,
+    color: '#333',
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  processingActive: {
+    backgroundColor: '#2196F3',
+  },
+  processingDot: {
+    width: 20,
+    height: 20,
+    opacity: 0.8,
+  },
+  processingInfo: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  processingStatusContainer: {
+    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 150,
+  },
+  processingInfoText: {
+    fontSize: 13,
+    color: '#2196F3',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  processingProgress: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+    fontWeight: '400',
+  }
+});
+
+// Helper function
+const formatTime = (seconds) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+// Add this helper function before the HomeScreen component
+const getColorForSpeaker = (speakerId) => {
+  const colors = [
+    '#6200ee',  // Purple
+    '#03dac6',  // Teal
+    '#ff6b6b',  // Red
+    '#4CAF50',  // Green
+    '#ff9800',  // Orange
+  ];
+  
+  if (speakerId === 'system') return '#666666';
+  if (speakerId === 'error') return '#dc3545';
+  
+  // Use modulo to cycle through colors if there are more speakers than colors
+  return colors[speakerId % colors.length];
+};
+
+// Add these utility functions at the top level
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+const processWithRetry = async (fn, maxRetries = 3, delayMs = 1000) => {
+  let lastError;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      console.log(`Attempt ${i + 1} failed:`, error);
+      lastError = error;
+      await delay(delayMs * (i + 1)); // Exponential backoff
+    }
+  }
+  throw lastError;
+};
+
+// Main component
+export default function HomeScreen() {
+  // State declarations
+  const [recording, setRecording] = React.useState();
+  const [isRecording, setIsRecording] = React.useState(false);
+  const [isTranscribing, setIsTranscribing] = React.useState(false);
+  const [transcription, setTranscription] = React.useState([]);
+  const [speakerColors, setSpeakerColors] = React.useState({});
+  const [isBackgroundRecording, setIsBackgroundRecording] = React.useState(false);
+  const [location, setLocation] = React.useState(null);
+  const [showHistory, setShowHistory] = React.useState(false);
+  const [isSummarizing, setIsSummarizing] = React.useState(false);
+  const [summaryData, setSummaryData] = React.useState(null);
+  const [isProcessingChunk, setIsProcessingChunk] = React.useState(false);
+  const processingQueue = React.useRef([]);
+  const [isHistoryEnabled, setIsHistoryEnabled] = React.useState(true);
+  const processingTasks = React.useRef([]);
+  const isProcessingTask = React.useRef(false);
+  const [processingStatus, setProcessingStatus] = React.useState(null);
+  const [processedChunks, setProcessedChunks] = React.useState(0);
+  const [totalChunks, setTotalChunks] = React.useState(0);
+
+  // Refs
+  const recordingInterval = React.useRef(null);
+  const transcriptionQueue = React.useRef([]);
+  const isProcessing = React.useRef(false);
+  const scrollViewRef = React.useRef(null);
+  const appState = React.useRef(AppState.currentState);
+  const isUnloading = React.useRef(false);
+  const lastProcessedDuration = React.useRef(0);
+
+  // Add summarization function
+  const summarizeTranscriptions = async () => {
+    try {
+      setIsSummarizing(true);
+      
+      const allTranscriptions = await storage.getTranscriptions();
+      const today = new Date().toDateString();
+      const todaysTranscriptions = allTranscriptions.filter(t => 
+        new Date(t.timestamp).toDateString() === today
+      );
+
+      if (todaysTranscriptions.length === 0) {
+        setSummaryData({ error: 'No conversations recorded today' });
+        return;
+      }
+
+      // Rest of your summarization logic...
+    } catch (error) {
+      console.error('Error summarizing conversations:', error);
+      setSummaryData({ error: 'Failed to generate summary' });
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  // Add recording functions
+  const startRecording = async () => {
+    try {
+      await cleanupRecording();
+      await setupAudioSession();
+
+      console.log('Initializing new recording...');
+      const newRecording = new Audio.Recording();
+      await newRecording.prepareToRecordAsync({
+        android: {
+          extension: '.wav',
+          outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_DEFAULT,
+          audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_DEFAULT,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 16000 * 16,
+        },
+        ios: {
+          extension: '.wav',
+          audioQuality: Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_HIGH,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 16000 * 16,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        }
+      });
+      
+      await newRecording.startAsync();
+      console.log('Recording started successfully');
+      setRecording(newRecording);
+      setIsRecording(true);
+      setIsBackgroundRecording(true);
+
+      // Start processing chunks in background
+      recordingInterval.current = setInterval(async () => {
+        try {
+          if (!recording) return;
+
+          const uri = recording.getURI();
+          if (!uri) return;
+
+          const currentRecording = recording;
+          await startNewRecordingChunk();
+          await currentRecording.stopAndUnloadAsync();
+          
+          // Add transcription task to queue
+          processingTasks.current.push({
+            type: 'transcription',
+            uri,
+            timestamp: Date.now()
+          });
+
+          // Start background processing
+          processTasksInBackground().catch(console.error);
+
+        } catch (error) {
+          console.error('Error in recording interval:', error);
+        }
+      }, CHUNK_DURATION);
+
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+      await cleanupRecording();
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      if (!recording) return;
+      
+      clearInterval(recordingInterval.current);
+      const uri = recording.getURI();
+      
+      try {
+        if (recording._isDoneRecording === false) {
+          await recording.stopAndUnloadAsync();
+        }
+      } catch (error) {
+        console.log('Recording already stopped:', error);
+      }
+
+      setRecording(null);
+      setIsRecording(false);
+      setIsBackgroundRecording(false);
+
+      if (uri) {
+        processingQueue.current.push(uri);
+        setTotalChunks(prev => prev + 1);
+        await processNextInQueue();
+      }
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+      setRecording(null);
+      setIsRecording(false);
+      setIsBackgroundRecording(false);
+    }
+  };
+
+  const cleanupRecording = async () => {
+    try {
+      clearInterval(recordingInterval.current);
+      if (recording) {
+        try {
+          if (recording._isDoneRecording === false) {
+            await recording.stopAndUnloadAsync();
+          }
+        } catch (error) {
+          console.log('Recording already stopped or unloaded:', error);
+        }
+      }
+      setRecording(null);
+      setIsRecording(false);
+      setIsBackgroundRecording(false);
+    } catch (error) {
+      console.error('Error in cleanup:', error);
+      setRecording(null);
+      setIsRecording(false);
+      setIsBackgroundRecording(false);
+    }
+  };
+
+  const setupAudioSession = async () => {
+    try {
+      console.log('Setting up audio mode...');
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+      });
+      console.log('Audio session setup complete');
+    } catch (error) {
+      console.error('Failed to setup audio session:', error);
+      throw error;
+    }
+  };
+
+  const startNewRecordingChunk = async () => {
+    try {
+      const newRecording = new Audio.Recording();
+      await newRecording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await newRecording.startAsync();
+      setRecording(newRecording);
+    } catch (error) {
+      console.error('Error starting new chunk:', error);
+      await cleanupRecording();
+    }
+  };
+
+  // Add this function inside HomeScreen component
+  const processTranscriptionQueue = async () => {
+    if (isProcessing.current || transcriptionQueue.current.length === 0) return;
+
+    try {
+      isProcessing.current = true;
+      setIsTranscribing(true);
+
+      while (transcriptionQueue.current.length > 0) {
+        const uri = transcriptionQueue.current.shift();
+        if (uri) {
+          await processChunkInRealTime(uri);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing transcription queue:', error);
+    } finally {
+      isProcessing.current = false;
+      setIsTranscribing(false);
+    }
+  };
+
+  // Update the processChunkInRealTime function
+  const processChunkInRealTime = async (uri) => {
+    try {
+      setProcessingStatus('Preparing audio...');
+      const processChunk = async () => {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        
+        if (blob.size < 1024) {
+          console.log('Chunk too small, skipping');
+          return null;
+        }
+
+        setProcessingStatus('Sending to Deepgram...');
+        const dgResponse = await fetch(
+          'https://api.deepgram.com/v1/listen?' +
+          'model=whisper-large&' +
+          'diarize=true&' +
+          'punctuate=true&' +
+          'utterances=true&' +
+          'diarize_version=3&' +
+          'channels=1&' +
+          'detect_language=true&' +
+          'smart_format=true&' +
+          'diarize_min_speakers=2&' +
+          'diarize_max_speakers=2&' +
+          'encoding=linear16&' +
+          'sample_rate=16000',
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Token ${DEEPGRAM_API_KEY}`,
+              'Content-Type': 'audio/wav',
+            },
+            body: blob
+          }
+        );
+
+        if (!dgResponse.ok) {
+          throw new Error(`Deepgram error: ${dgResponse.status}`);
+        }
+
+        setProcessingStatus('Processing response...');
+        return await dgResponse.json();
+      };
+
+      const data = await processWithRetry(processChunk);
+      if (!data) return;
+
+      if (!data.results?.utterances?.length) {
+        console.log('No utterances in response');
+        return;
+      }
+
+      setProcessedChunks(prev => prev + 1);
+      setProcessingStatus('Transcription received');
+
+      // Process in background
+      requestAnimationFrame(() => {
+        const processedTranscription = normalizeUtterances(data.results.utterances);
+        setTranscription(prev => [...prev, ...processedTranscription]);
+        
+        if (processedTranscription.length > 0) {
+          storeTranscriptionInBackground(processedTranscription, uri)
+            .catch(console.error);
+        }
+      });
+
+    } catch (error) {
+      setProcessingStatus('Error processing chunk');
+      console.error('Real-time transcription error:', error);
+      requestAnimationFrame(() => {
+        setTranscription(prev => [...prev, {
+          id: `error-${Date.now()}`,
+          speaker: 'System',
+          speakerId: 'error',
+          text: `Error: ${error.message}`,
+          isError: true
+        }]);
+      });
+    }
+  };
+
+  // Add this helper function for storing transcriptions
+  const storeTranscriptionInBackground = async (transcriptionData, audioUri) => {
+    try {
+      await storage.saveTranscription({
+        timestamp: new Date().toISOString(),
+        utterances: transcriptionData,
+        audioUri,
+        deviceInfo: {
+          platform: 'iOS',
+          version: '1.0.0',
+        },
+        settings: {
+          model: 'whisper-large',
+          chunkDuration: CHUNK_DURATION,
+        }
+      });
+    } catch (error) {
+      console.error('Error storing transcription:', error);
+    }
+  };
+
+  // Add this helper function for normalizing utterances
+  const normalizeUtterances = (utterances) => {
+    // Map to track speaker confidence scores
+    const speakerConfidenceMap = new Map();
+    
+    // First pass: collect confidence scores for each speaker
+    utterances.forEach(utterance => {
+      const speakerId = utterance.speaker;
+      const currentConfidence = speakerConfidenceMap.get(speakerId) || {
+        totalConfidence: 0,
+        count: 0,
+        words: 0
+      };
+      
+      currentConfidence.totalConfidence += utterance.confidence || 0;
+      currentConfidence.count += 1;
+      currentConfidence.words += utterance.words?.length || 0;
+      
+      speakerConfidenceMap.set(speakerId, currentConfidence);
+    });
+
+    // Sort speakers by their average confidence and word count
+    const sortedSpeakers = Array.from(speakerConfidenceMap.entries())
+      .sort((a, b) => {
+        const aScore = (a[1].totalConfidence / a[1].count) * a[1].words;
+        const bScore = (b[1].totalConfidence / b[1].count) * b[1].words;
+        return bScore - aScore;
+      })
+      .map(([id]) => id);
+
+    // Create mapping for speaker normalization
+    const speakerMapping = new Map(
+      sortedSpeakers.map((id, index) => [id, index])
+    );
+
+    // Process utterances with normalized speaker IDs
+    return utterances
+      .map((utterance, index) => {
+        const normalizedSpeakerId = speakerMapping.get(utterance.speaker);
+        return {
+          id: `${Date.now()}-${index}`,
+          speaker: `Speaker ${normalizedSpeakerId + 1}`,
+          speakerId: normalizedSpeakerId,
+          text: utterance.transcript,
+          confidence: utterance.confidence,
+          timeStart: utterance.start,
+          timeEnd: utterance.end,
+          timestamp: new Date().toISOString(),
+        };
+      })
+      .filter(utterance => utterance.text.trim().length > 0);
+  };
+
+  // Update the queue processing function
+  const processNextInQueue = async () => {
+    if (processingQueue.current.length === 0) {
+      setIsProcessingChunk(false);
+      return;
+    }
+
+    const nextUri = processingQueue.current.shift();
+    if (nextUri) {
+      setIsProcessingChunk(true);
+      try {
+        await processChunkInRealTime(nextUri);
+      } finally {
+        // Only clear processing state if queue is empty
+        if (processingQueue.current.length === 0) {
+          setIsProcessingChunk(false);
+        } else {
+          // Process next item if available
+          setTimeout(processNextInQueue, 100);
+        }
+      }
+    }
+  };
+
+  // Add this background processing system
+  const processTasksInBackground = async () => {
+    if (isProcessingTask.current || processingTasks.current.length === 0) return;
+
+    try {
+      isProcessingTask.current = true;
+      
+      while (processingTasks.current.length > 0) {
+        const task = processingTasks.current[0]; // Peek at the first task
+        
+        if (task.type === 'transcription') {
+          setIsProcessingChunk(true);
+          try {
+            await processChunkInRealTime(task.uri);
+            processingTasks.current.shift(); // Remove completed task
+          } catch (error) {
+            console.error('Task processing error:', error);
+            processingTasks.current.shift(); // Remove failed task
+          }
+        }
+      }
+    } finally {
+      isProcessingTask.current = false;
+      setIsProcessingChunk(false);
+    }
+  };
+
+  // Rest of your component code...
+
+  return (
+    <View style={styles.container}>
+      {/* Top Section - Recording Controls */}
+      <View style={styles.topSection}>
+        <TouchableOpacity
+          style={styles.recordButton}
+          onPress={isRecording ? stopRecording : startRecording}
+          disabled={false}
+        >
+          <View style={[
+            styles.recordButtonInner,
+            isRecording && styles.recordingActive,
+            (!isRecording && isProcessingChunk) && styles.processingActive
+          ]}>
+            <View style={[
+              styles.recordDot,
+              isRecording && styles.recordingDot,
+              (!isRecording && isProcessingChunk) && styles.processingDot
+            ]} />
+          </View>
+        </TouchableOpacity>
+        
+        <Text style={styles.recordingStatus}>
+          {!isRecording && isProcessingChunk 
+            ? 'Processing last recording...' 
+            : isRecording 
+              ? 'Recording...' 
+              : 'Tap to Record'
+          }
+        </Text>
+
+        {processingStatus && (
+          <View style={styles.processingInfo}>
+            <View style={styles.processingStatusContainer}>
+              <Text style={styles.processingInfoText}>
+                {processingStatus}
+              </Text>
+              {totalChunks > 0 && (
+                <Text style={styles.processingProgress}>
+                  ({processedChunks}/{totalChunks})
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Middle Section - Live Transcription */}
+      <View style={styles.transcriptionWrapper}>
+        <ScrollView 
+          style={styles.transcriptionScroll}
+          contentContainerStyle={styles.transcriptionContent}
+        >
+          {transcription.map((utterance) => (
+            <View
+              key={utterance.id}
+              style={[
+                styles.utteranceContainer,
+                { borderLeftColor: getColorForSpeaker(utterance.speakerId) }
+              ]}
+            >
+              <Text style={styles.utteranceHeader}>
+                <Text style={[styles.speakerLabel, { color: getColorForSpeaker(utterance.speakerId) }]}>
+                  {utterance.speaker}
+                </Text>
+                <Text style={styles.timeLabel}>{formatTime(utterance.timeStart)}</Text>
+              </Text>
+              <Text style={styles.utteranceText}>{utterance.text}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Bottom Section - Navigation */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity 
+          style={styles.navButton}
+          onPress={() => navigation.navigate('History')}
+        >
+          <Text style={styles.navButtonText}>History</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.navButton}
+          onPress={summarizeTranscriptions}
+        >
+          <Text style={styles.navButtonText}>Summary</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+} 
