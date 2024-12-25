@@ -4,66 +4,87 @@ const TRANSCRIPTIONS_KEY = '@transcriptions';
 
 export const saveTranscription = async (transcriptionData) => {
   try {
-    const existingData = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
-    const transcriptions = existingData ? JSON.parse(existingData) : [];
+    console.log('💾 Starting saveTranscription with data:', {
+      id: transcriptionData.id,
+      sessionId: transcriptionData.sessionId,
+      utterancesCount: transcriptionData.utterances?.length
+    });
+    
+    const existing = await getTranscriptions();
+    console.log('📊 Existing transcriptions:', existing.length);
+    
+    // Validate required fields
+    if (!transcriptionData.id || !transcriptionData.sessionId) {
+      console.error('❌ Missing required fields:', { 
+        hasId: !!transcriptionData.id, 
+        hasSessionId: !!transcriptionData.sessionId 
+      });
+      throw new Error('Missing required fields in transcription data');
+    }
+    
+    // Check for duplicates
+    if (existing.some(t => t.id === transcriptionData.id)) {
+      console.log('⚠️ Transcription already exists:', transcriptionData.id);
+      return;
+    }
 
-    // Enhanced metadata
-    const metadata = {
-      deviceInfo: {
-        platform: transcriptionData.deviceInfo.platform,
-        version: transcriptionData.deviceInfo.version,
-        manufacturer: transcriptionData.deviceInfo?.manufacturer,
-        model: transcriptionData.deviceInfo?.model,
-      },
-      settings: {
-        model: transcriptionData.settings.model,
-        chunkDuration: transcriptionData.settings.chunkDuration,
-        language: transcriptionData.settings?.language || 'en-US',
-      },
-      recording: {
-        startTime: transcriptionData.timestamp,
-        duration: transcriptionData.totalDuration,
-        format: 'audio/m4a',
-        quality: 'HIGH_QUALITY',
-      },
-      location: transcriptionData.location ? {
-        latitude: transcriptionData.location.coords?.latitude,
-        longitude: transcriptionData.location.coords?.longitude,
-        accuracy: transcriptionData.location.coords?.accuracy,
-        timestamp: transcriptionData.location.timestamp,
-      } : null,
-      stats: {
-        speakerCount: new Set(transcriptionData.utterances.map(u => u.speakerId)).size,
-        utteranceCount: transcriptionData.utterances.length,
-        totalWords: transcriptionData.utterances.reduce((acc, u) => acc + u.text.split(' ').length, 0),
-        averageConfidence: transcriptionData.utterances.reduce((acc, u) => acc + (u.confidence || 0), 0) / transcriptionData.utterances.length,
-      }
+    // Ensure all required fields are present
+    const validatedData = {
+      id: transcriptionData.id,
+      sessionId: transcriptionData.sessionId,
+      timestamp: transcriptionData.timestamp || new Date().toISOString(),
+      utterances: transcriptionData.utterances || [],
+      audioUri: transcriptionData.audioUri,
+      deviceInfo: transcriptionData.deviceInfo || {},
+      settings: transcriptionData.settings || {}
     };
 
-    const newTranscription = {
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
-      metadata,
-      utterances: transcriptionData.utterances,
-      audioUri: transcriptionData.audioUri
-    };
-
-    const updatedTranscriptions = [...transcriptions, newTranscription];
-    await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(updatedTranscriptions));
-
-    return newTranscription;
+    const updated = [...existing, validatedData];
+    console.log('📝 Saving updated transcriptions:', updated.length);
+    
+    await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(updated));
+    console.log('✅ Save operation completed');
+    
+    // Verify save
+    const verificationData = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
+    const verifiedTranscriptions = JSON.parse(verificationData);
+    const isVerified = verifiedTranscriptions.some(t => t.id === transcriptionData.id);
+    
+    console.log('✅ Save verification:', {
+      saved: isVerified,
+      totalStoredItems: verifiedTranscriptions.length
+    });
+    
+    if (!isVerified) {
+      throw new Error('Verification failed - transcription not found after save');
+    }
+    
   } catch (error) {
-    console.error('Error saving transcription:', error);
+    console.error('❌ Error in saveTranscription:', error);
     throw error;
   }
 };
 
 export const getTranscriptions = async () => {
   try {
+    console.log('📖 Getting all transcriptions...');
     const data = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
-    return data ? JSON.parse(data) : [];
+    console.log('🔍 Raw storage data:', data);
+    
+    const parsed = data ? JSON.parse(data) : [];
+    console.log('📊 Retrieved transcriptions:', {
+      count: parsed.length,
+      sample: parsed.length > 0 ? {
+        id: parsed[0].id,
+        sessionId: parsed[0].sessionId,
+        timestamp: parsed[0].timestamp,
+        utterancesCount: parsed[0].utterances?.length
+      } : null
+    });
+    
+    return parsed;
   } catch (error) {
-    console.error('Error getting transcriptions:', error);
+    console.error('❌ Error getting transcriptions:', error);
     throw error;
   }
 };
@@ -94,6 +115,18 @@ export const clearAllTranscriptions = async () => {
     await AsyncStorage.removeItem(TRANSCRIPTIONS_KEY);
   } catch (error) {
     console.error('Error clearing transcriptions:', error);
+    throw error;
+  }
+};
+
+export const getTranscriptionsBySession = async (sessionId) => {
+  try {
+    const allTranscriptions = await getTranscriptions();
+    return allTranscriptions
+      .filter(t => t && t.sessionId && t.sessionId === sessionId)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  } catch (error) {
+    console.error('Error getting transcriptions by session:', error);
     throw error;
   }
 }; 
