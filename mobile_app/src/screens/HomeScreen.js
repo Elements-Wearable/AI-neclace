@@ -2,6 +2,7 @@ import { Audio } from 'expo-av';
 import React from 'react';
 import {
   AppState,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +16,19 @@ const DEEPGRAM_API_KEY = '1b44c88da4fd678d433ab3a10326be8621e49621';
 const CHUNK_DURATION = 5000;
 const BACKGROUND_RECORDING_TASK = 'BACKGROUND_RECORDING_TASK';
 const OPENAI_API_KEY = 'sk-proj-48l1o...'; // Your API key
+
+const SUPPORTED_LANGUAGES = [
+  { code: 'en', name: 'English' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
+  { code: 'it', name: 'Italian' },
+  { code: 'pt', name: 'Portuguese' },
+  { code: 'nl', name: 'Dutch' },
+  { code: 'ja', name: 'Japanese' },
+  { code: 'ko', name: 'Korean' },
+  { code: 'zh', name: 'Chinese' },
+];
 
 // Styles
 const styles = StyleSheet.create({
@@ -420,7 +434,47 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 8,
     fontWeight: '400',
-  }
+  },
+  languageButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  languageButtonText: {
+    color: '#6200ee',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  languageModal: {
+    backgroundColor: 'white',
+    borderRadius: 15,
+    padding: 20,
+    width: '80%',
+    maxHeight: '70%',
+  },
+  languageList: {
+    marginVertical: 15,
+  },
+  languageOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+  },
+  selectedLanguage: {
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+  },
+  languageText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  selectedLanguageText: {
+    color: '#6200ee',
+    fontWeight: '500',
+  },
 });
 
 // Helper function
@@ -466,7 +520,7 @@ const processWithRetry = async (fn, maxRetries = 3, delayMs = 1000) => {
 };
 
 // Main component
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
   // State declarations
   const [recording, setRecording] = React.useState();
   const [isRecording, setIsRecording] = React.useState(false);
@@ -486,6 +540,11 @@ export default function HomeScreen() {
   const [processingStatus, setProcessingStatus] = React.useState(null);
   const [processedChunks, setProcessedChunks] = React.useState(0);
   const [totalChunks, setTotalChunks] = React.useState(0);
+  const lastProcessedUri = React.useRef(null);
+  const [currentSessionId, setCurrentSessionId] = React.useState(null);
+  const lastStoredChunk = React.useRef(new Set());
+  const [selectedLanguage, setSelectedLanguage] = React.useState('en');
+  const [showLanguageModal, setShowLanguageModal] = React.useState(false);
 
   // Refs
   const recordingInterval = React.useRef(null);
@@ -527,7 +586,12 @@ export default function HomeScreen() {
       await cleanupRecording();
       await setupAudioSession();
 
-      console.log('Initializing new recording...');
+      // Generate new session ID when starting recording
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setCurrentSessionId(sessionId);
+      lastStoredChunk.current.clear(); // Clear previous chunks
+
+      console.log('🎤 Starting new recording session:', sessionId);
       const newRecording = new Audio.Recording();
       await newRecording.prepareToRecordAsync({
         android: {
@@ -604,15 +668,24 @@ export default function HomeScreen() {
         console.log('Recording already stopped:', error);
       }
 
+      // Reset recording states
       setRecording(null);
       setIsRecording(false);
       setIsBackgroundRecording(false);
 
-      if (uri) {
+      // Add to processing queue if we have a URI and it hasn't been processed
+      if (uri && uri !== lastProcessedUri.current) {
+        lastProcessedUri.current = uri;
         processingQueue.current.push(uri);
         setTotalChunks(prev => prev + 1);
-        await processNextInQueue();
+        processNextInQueue().catch(console.error);
       }
+
+      // Verify all chunks were stored
+      console.log('🔍 Verifying stored chunks for session:', currentSessionId);
+      await verifyStoredTranscriptions(currentSessionId);
+      
+      setCurrentSessionId(null);
     } catch (error) {
       console.error('Failed to stop recording:', error);
       setRecording(null);
@@ -696,104 +769,137 @@ export default function HomeScreen() {
   // Update the processChunkInRealTime function
   const processChunkInRealTime = async (uri) => {
     try {
+      if (!currentSessionId) {
+        throw new Error('No active session ID');
+      }
+
+      const chunkId = `${currentSessionId}_chunk_${Date.now()}`;
+      console.log('🎯 Processing chunk:', chunkId);
+
+      // Validate URI
+      if (!uri) {
+        throw new Error('No URI provided for processing');
+      }
+
       setProcessingStatus('Preparing audio...');
-      const processChunk = async () => {
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        
-        if (blob.size < 1024) {
-          console.log('Chunk too small, skipping');
-          return null;
-        }
-
-        setProcessingStatus('Sending to Deepgram...');
-        const dgResponse = await fetch(
-          'https://api.deepgram.com/v1/listen?' +
-          'model=whisper-large&' +
-          'diarize=true&' +
-          'punctuate=true&' +
-          'utterances=true&' +
-          'diarize_version=3&' +
-          'channels=1&' +
-          'detect_language=true&' +
-          'smart_format=true&' +
-          'diarize_min_speakers=2&' +
-          'diarize_max_speakers=2&' +
-          'encoding=linear16&' +
-          'sample_rate=16000',
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Token ${DEEPGRAM_API_KEY}`,
-              'Content-Type': 'audio/wav',
-            },
-            body: blob
-          }
-        );
-
-        if (!dgResponse.ok) {
-          throw new Error(`Deepgram error: ${dgResponse.status}`);
-        }
-
-        setProcessingStatus('Processing response...');
-        return await dgResponse.json();
-      };
-
-      const data = await processWithRetry(processChunk);
-      if (!data) return;
-
-      if (!data.results?.utterances?.length) {
-        console.log('No utterances in response');
+      console.log('📊 Fetching audio blob...');
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      // Validate blob
+      console.log('📊 Blob size:', blob.size, 'bytes');
+      if (blob.size < 1024) {
+        console.log('⚠️ Chunk too small, skipping');
         return;
       }
 
+      setProcessingStatus('Sending to Deepgram...');
+      console.log('🚀 Sending to Deepgram API...');
+      const dgResponse = await fetch(
+        'https://api.deepgram.com/v1/listen?' +
+        'model=whisper-large&' +
+        'diarize=true&' +
+        'punctuate=true&' +
+        'utterances=true&' +
+        'diarize_version=3&' +
+        'channels=1&' +
+        `language=${selectedLanguage}&` +
+        'smart_format=true&' +
+        'diarize_min_speakers=2&' +
+        'diarize_max_speakers=2&' +
+        'encoding=linear16&' +
+        'sample_rate=16000',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${DEEPGRAM_API_KEY}`,
+            'Content-Type': 'audio/wav',
+          },
+          body: blob
+        }
+      );
+
+      // Validate Deepgram response
+      if (!dgResponse.ok) {
+        const errorText = await dgResponse.text();
+        console.error('❌ Deepgram error details:', errorText);
+        throw new Error(`Deepgram error: ${dgResponse.status} - ${errorText}`);
+      }
+
+      setProcessingStatus('Processing response...');
+      console.log('📝 Processing Deepgram response...');
+      const data = await dgResponse.json();
+
+      // Validate response data
+      if (!data.results) {
+        throw new Error('Invalid response from Deepgram: missing results');
+      }
+
+      if (!data.results.utterances?.length) {
+        console.log('ℹ️ No utterances in response');
+        return;
+      }
+
+      console.log('✅ Received', data.results.utterances.length, 'utterances');
+
+      // Process transcription
+      const processedTranscription = normalizeUtterances(data.results.utterances);
+      console.log('✨ Normalized transcription:', processedTranscription.length, 'utterances');
+      
+      // Update UI
+      setTranscription(prev => [...prev, ...processedTranscription]);
       setProcessedChunks(prev => prev + 1);
       setProcessingStatus('Transcription received');
 
-      // Process in background
-      requestAnimationFrame(() => {
-        const processedTranscription = normalizeUtterances(data.results.utterances);
-        setTranscription(prev => [...prev, ...processedTranscription]);
+      // Store in background
+      if (processedTranscription.length > 0) {
+        const transcriptionData = {
+          id: chunkId,
+          sessionId: currentSessionId,
+          timestamp: new Date().toISOString(),
+          utterances: processedTranscription,
+          audioUri: uri,
+          deviceInfo: {
+            platform: 'mobile',
+            version: '1.0'
+          },
+          settings: {
+            model: 'whisper-large',
+            chunkDuration: CHUNK_DURATION,
+          }
+        };
+
+        console.log('💾 Storing transcription for chunk:', chunkId);
+        await storeTranscriptionInBackground(transcriptionData);
         
-        if (processedTranscription.length > 0) {
-          storeTranscriptionInBackground(processedTranscription, uri)
-            .catch(console.error);
-        }
-      });
+        // Track stored chunk
+        lastStoredChunk.current.add(chunkId);
+        console.log('✅ Transcription stored successfully:', chunkId);
+      }
 
     } catch (error) {
-      setProcessingStatus('Error processing chunk');
-      console.error('Real-time transcription error:', error);
-      requestAnimationFrame(() => {
-        setTranscription(prev => [...prev, {
-          id: `error-${Date.now()}`,
-          speaker: 'System',
-          speakerId: 'error',
-          text: `Error: ${error.message}`,
-          isError: true
-        }]);
-      });
+      console.error('❌ Error processing chunk:', error);
+      throw error;
     }
   };
 
   // Add this helper function for storing transcriptions
-  const storeTranscriptionInBackground = async (transcriptionData, audioUri) => {
+  const storeTranscriptionInBackground = async (transcriptionData) => {
     try {
-      await storage.saveTranscription({
-        timestamp: new Date().toISOString(),
-        utterances: transcriptionData,
-        audioUri,
-        deviceInfo: {
-          platform: 'iOS',
-          version: '1.0.0',
-        },
-        settings: {
-          model: 'whisper-large',
-          chunkDuration: CHUNK_DURATION,
-        }
-      });
+      console.log('📝 Starting storage process for:', transcriptionData.id);
+      await storage.saveTranscription(transcriptionData);
+      
+      // Verify storage immediately after saving
+      const stored = await storage.getTranscriptions();
+      const isStored = stored.some(t => t.id === transcriptionData.id);
+      console.log('✅ Storage verification:', isStored ? 'Successfully stored' : 'Failed to store');
+      
+      if (!isStored) {
+        console.error('❌ Transcription not found in storage after save attempt');
+      }
     } catch (error) {
-      console.error('Error storing transcription:', error);
+      console.error('❌ Error storing transcription:', error);
+      throw error; // Re-throw to handle in calling function
     }
   };
 
@@ -852,25 +958,30 @@ export default function HomeScreen() {
 
   // Update the queue processing function
   const processNextInQueue = async () => {
-    if (processingQueue.current.length === 0) {
+    // If already processing or queue is empty, return
+    if (isTranscribing || processingQueue.current.length === 0) {
       setIsProcessingChunk(false);
       return;
     }
 
-    const nextUri = processingQueue.current.shift();
-    if (nextUri) {
+    try {
+      setIsTranscribing(true);
       setIsProcessingChunk(true);
-      try {
-        await processChunkInRealTime(nextUri);
-      } finally {
-        // Only clear processing state if queue is empty
-        if (processingQueue.current.length === 0) {
-          setIsProcessingChunk(false);
-        } else {
-          // Process next item if available
-          setTimeout(processNextInQueue, 100);
+
+      while (processingQueue.current.length > 0) {
+        const uri = processingQueue.current[0]; // Peek at first item
+        
+        try {
+          await processChunkInRealTime(uri);
+          processingQueue.current.shift(); // Remove processed item
+        } catch (error) {
+          console.error('Error processing chunk:', error);
+          processingQueue.current.shift(); // Remove failed item
         }
       }
+    } finally {
+      setIsTranscribing(false);
+      setIsProcessingChunk(false);
     }
   };
 
@@ -900,6 +1011,68 @@ export default function HomeScreen() {
       setIsProcessingChunk(false);
     }
   };
+
+  // Add verification function
+  const verifyStoredTranscriptions = async (sessionId) => {
+    try {
+      const stored = await storage.getTranscriptionsBySession(sessionId);
+      console.log(`📊 Verification - Session ${sessionId}:`, {
+        storedChunks: stored.length,
+        trackedChunks: lastStoredChunk.current.size
+      });
+      
+      if (stored.length !== lastStoredChunk.current.size) {
+        console.warn('⚠️ Some chunks may not have been stored properly');
+        // Optionally retry storage for missing chunks
+      }
+    } catch (error) {
+      console.error('Error verifying transcriptions:', error);
+    }
+  };
+
+  // Add the language selector modal component
+  const LanguageSelector = () => (
+    <Modal
+      visible={showLanguageModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowLanguageModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.languageModal}>
+          <Text style={styles.modalTitle}>Select Language</Text>
+          <ScrollView style={styles.languageList}>
+            {SUPPORTED_LANGUAGES.map((lang) => (
+              <TouchableOpacity
+                key={lang.code}
+                style={[
+                  styles.languageOption,
+                  selectedLanguage === lang.code && styles.selectedLanguage
+                ]}
+                onPress={() => {
+                  setSelectedLanguage(lang.code);
+                  setShowLanguageModal(false);
+                }}
+              >
+                <Text style={[
+                  styles.languageText,
+                  selectedLanguage === lang.code && styles.selectedLanguageText
+                ]}>
+                  {lang.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setShowLanguageModal(false)}
+          >
+            <Text style={styles.closeButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 
   // Rest of your component code...
 
@@ -984,7 +1157,7 @@ export default function HomeScreen() {
         >
           <Text style={styles.navButtonText}>History</Text>
         </TouchableOpacity>
-
+        
         <TouchableOpacity 
           style={styles.navButton}
           onPress={summarizeTranscriptions}
@@ -992,6 +1165,9 @@ export default function HomeScreen() {
           <Text style={styles.navButtonText}>Summary</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Add the language selector modal */}
+      <LanguageSelector />
     </View>
   );
 } 
