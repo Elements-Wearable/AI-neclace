@@ -9,14 +9,13 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import {
+  CHUNK_DURATION,
+  DEEPGRAM_API_KEY
+} from '../config/constants';
 import * as storage from '../services/storage';
 
 // Constants
-const DEEPGRAM_API_KEY = '1b44c88da4fd678d433ab3a10326be8621e49621';
-const CHUNK_DURATION = 5000;
-const BACKGROUND_RECORDING_TASK = 'BACKGROUND_RECORDING_TASK';
-const OPENAI_API_KEY = 'sk-proj-48l1o...'; // Your API key
-
 const SUPPORTED_LANGUAGES = [
   { code: 'en', name: 'English' },
   { code: 'es', name: 'Spanish' },
@@ -1160,7 +1159,7 @@ export default function HomeScreen({ navigation }) {
         
         <TouchableOpacity 
           style={styles.navButton}
-          onPress={summarizeTranscriptions}
+          onPress={() => navigation.navigate('Summary')}
         >
           <Text style={styles.navButtonText}>Summary</Text>
         </TouchableOpacity>
