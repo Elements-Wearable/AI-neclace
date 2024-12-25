@@ -2,6 +2,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HistoryScreen from './src/screens/HistoryScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
 
 const Stack = createNativeStackNavigator();
@@ -26,6 +27,14 @@ export default function App() {
         <Stack.Screen 
           name="Summary" 
           component={SummaryScreen}
+          options={{ 
+            headerShown: false,
+            presentation: 'modal'
+          }}
+        />
+        <Stack.Screen 
+          name="Settings" 
+          component={SettingsScreen}
           options={{ 
             headerShown: false,
             presentation: 'modal'

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import React from 'react';
 import {
@@ -11,23 +12,11 @@ import {
 } from 'react-native';
 import {
   CHUNK_DURATION,
-  DEEPGRAM_API_KEY
+  DEEPGRAM_API_KEY,
+  SETTINGS_KEY,
+  SUPPORTED_LANGUAGES
 } from '../config/constants';
 import * as storage from '../services/storage';
-
-// Constants
-const SUPPORTED_LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'it', name: 'Italian' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'nl', name: 'Dutch' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'zh', name: 'Chinese' },
-];
 
 // Styles
 const styles = StyleSheet.create({
@@ -474,6 +463,21 @@ const styles = StyleSheet.create({
     color: '#6200ee',
     fontWeight: '500',
   },
+  settingsButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 1,
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsButtonText: {
+    fontSize: 24,
+  },
 });
 
 // Helper function
@@ -544,6 +548,7 @@ export default function HomeScreen({ navigation }) {
   const lastStoredChunk = React.useRef(new Set());
   const [selectedLanguage, setSelectedLanguage] = React.useState('en');
   const [showLanguageModal, setShowLanguageModal] = React.useState(false);
+  const [appSettings, setAppSettings] = React.useState(null);
 
   // Refs
   const recordingInterval = React.useRef(null);
@@ -553,6 +558,22 @@ export default function HomeScreen({ navigation }) {
   const appState = React.useRef(AppState.currentState);
   const isUnloading = React.useRef(false);
   const lastProcessedDuration = React.useRef(0);
+
+  // Load settings in useEffect
+  React.useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const savedSettings = await AsyncStorage.getItem(SETTINGS_KEY);
+        if (savedSettings) {
+          setAppSettings(JSON.parse(savedSettings));
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    };
+
+    loadSettings();
+  }, []);
 
   // Add summarization function
   const summarizeTranscriptions = async () => {
@@ -797,15 +818,14 @@ export default function HomeScreen({ navigation }) {
       const dgResponse = await fetch(
         'https://api.deepgram.com/v1/listen?' +
         'model=whisper-large&' +
-        'diarize=true&' +
-        'punctuate=true&' +
-        'utterances=true&' +
-        'diarize_version=3&' +
-        'channels=1&' +
-        `language=${selectedLanguage}&` +
-        'smart_format=true&' +
-        'diarize_min_speakers=2&' +
-        'diarize_max_speakers=2&' +
+        `language=${appSettings?.language || 'en'}&` +
+        `diarize=${appSettings?.autoSpeakerDetection || true}&` +
+        `diarize_version=3&` +
+        `channels=1&` +
+        `smart_format=${appSettings?.smartFormatting || true}&` +
+        `punctuate=${appSettings?.autoPunctuation || true}&` +
+        `diarize_min_speakers=1&` +
+        `diarize_max_speakers=${appSettings?.maxSpeakers || 2}&` +
         'encoding=linear16&' +
         'sample_rate=16000',
         {
@@ -1079,6 +1099,13 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       {/* Top Section - Recording Controls */}
       <View style={styles.topSection}>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Text style={styles.settingsButtonText}>⚙️</Text>
+        </TouchableOpacity>
+        
         <TouchableOpacity
           style={styles.recordButton}
           onPress={isRecording ? stopRecording : startRecording}
