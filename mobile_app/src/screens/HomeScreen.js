@@ -361,25 +361,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginTop: 16,
   },
-  bottomNav: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-  },
-  navButton: {
-    flex: 1,
-    paddingVertical: 12,
-    marginHorizontal: 5,
-    backgroundColor: '#6200ee',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  navButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
   processingButton: {
     backgroundColor: '#FFA000', // Orange color for processing state
   },
@@ -1100,13 +1081,6 @@ export default function HomeScreen({ navigation }) {
       {/* Top Section - Recording Controls */}
       <View style={styles.topSection}>
         <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <Text style={styles.settingsButtonText}>⚙️</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
           style={styles.recordButton}
           onPress={isRecording ? stopRecording : startRecording}
           disabled={false}
@@ -1173,23 +1147,6 @@ export default function HomeScreen({ navigation }) {
             </View>
           ))}
         </ScrollView>
-      </View>
-
-      {/* Bottom Section - Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity 
-          style={styles.navButton}
-          onPress={() => navigation.navigate('History')}
-        >
-          <Text style={styles.navButtonText}>History</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navButton}
-          onPress={() => navigation.navigate('Summary')}
-        >
-          <Text style={styles.navButtonText}>Summary</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Add the language selector modal */}
