@@ -158,4 +158,18 @@ export const processTranscription = async (audioUri) => {
     console.error('Error processing transcription:', error);
     throw error;
   }
+};
+
+export const clearTranscriptionsByDateRange = async (startDate, endDate) => {
+  try {
+    const transcriptions = await getTranscriptions();
+    const updatedTranscriptions = transcriptions.filter(t => {
+      const transcriptionDate = new Date(t.timestamp);
+      return transcriptionDate < startDate || transcriptionDate > endDate;
+    });
+    await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(updatedTranscriptions));
+  } catch (error) {
+    console.error('Error clearing transcriptions by date range:', error);
+    throw error;
+  }
 }; 

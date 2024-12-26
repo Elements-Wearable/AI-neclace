@@ -1,19 +1,38 @@
-import React from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View
 } from 'react-native';
+import { Calendar, CalendarList } from 'react-native-calendars';
 import * as storage from '../services/storage';
 
 export default function HistoryScreen({ navigation }) {
   const [history, setHistory] = React.useState([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isNewestFirst, setIsNewestFirst] = React.useState(true);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [dateRange, setDateRange] = useState({
+    fromDate: new Date(),
+    toDate: new Date(),
+    fromTime: new Date(),
+    toTime: new Date(),
+  });
+  const [showPicker, setShowPicker] = useState({
+    fromDate: false,
+    toDate: false,
+    fromTime: false,
+    toTime: false,
+  });
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [markedDates, setMarkedDates] = useState({});
 
   React.useEffect(() => {
     loadHistory();
@@ -42,6 +61,7 @@ export default function HistoryScreen({ navigation }) {
       console.log('📅 Grouped by date:', Object.keys(grouped).length, 'dates');
       
       setHistory(grouped);
+      updateMarkedDates(transcriptions);
     } catch (error) {
       console.error('❌ Error loading history:', error);
       // Show error to user
@@ -111,6 +131,40 @@ export default function HistoryScreen({ navigation }) {
     );
   };
 
+  const handleClearTranscriptions = async () => {
+    try {
+      const startDateTime = new Date(dateRange.fromDate);
+      startDateTime.setHours(dateRange.fromTime.getHours());
+      startDateTime.setMinutes(dateRange.fromTime.getMinutes());
+
+      const endDateTime = new Date(dateRange.toDate);
+      endDateTime.setHours(dateRange.toTime.getHours());
+      endDateTime.setMinutes(dateRange.toTime.getMinutes());
+
+      await storage.clearTranscriptionsByDateRange(startDateTime, endDateTime);
+      setShowClearModal(false);
+      // Refresh history
+      loadHistory();
+    } catch (error) {
+      console.error('Error clearing transcriptions:', error);
+      Alert.alert('Error', 'Failed to clear transcriptions');
+    }
+  };
+
+  const updateMarkedDates = (transcriptions) => {
+    const marked = {};
+    transcriptions.forEach(item => {
+      const date = new Date(item.timestamp).toISOString().split('T')[0];
+      marked[date] = {
+        marked: true,
+        dotColor: '#6200ee',
+        selected: date === selectedDate,
+        selectedColor: 'rgba(98, 0, 238, 0.1)'
+      };
+    });
+    setMarkedDates(marked);
+  };
+
   const Header = () => (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>Conversation History</Text>
@@ -126,13 +180,207 @@ export default function HistoryScreen({ navigation }) {
         
         <TouchableOpacity 
           style={styles.deleteButton}
-          onPress={clearHistory}
+          onPress={() => setShowClearModal(true)}
         >
-          <Text style={styles.deleteButtonText}>Clear All</Text>
+          <Text style={styles.deleteButtonText}>Clear History</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
+
+  const ClearTranscriptionsModal = () => {
+    const [selectedRange, setSelectedRange] = useState({
+      start: null,
+      end: null
+    });
+
+    // Function to generate marked dates object for the range
+    const getMarkedDates = () => {
+      if (!selectedRange.start) return {};
+
+      const markedDates = {};
+      const start = selectedRange.start.toISOString().split('T')[0];
+      markedDates[start] = {
+        startingDay: true,
+        color: '#6200ee',
+        textColor: 'white'
+      };
+
+      if (selectedRange.end) {
+        const end = selectedRange.end.toISOString().split('T')[0];
+        markedDates[end] = {
+          endingDay: true,
+          color: '#6200ee',
+          textColor: 'white'
+        };
+
+        // Fill in the middle dates
+        let currentDate = new Date(selectedRange.start);
+        currentDate.setDate(currentDate.getDate() + 1);
+        
+        while (currentDate < selectedRange.end) {
+          const dateString = currentDate.toISOString().split('T')[0];
+          markedDates[dateString] = {
+            color: '#6200ee',
+            textColor: 'white'
+          };
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      }
+
+      return markedDates;
+    };
+
+    return (
+      <Modal
+        visible={showClearModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowClearModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Clear Transcriptions</Text>
+            
+            <Calendar
+              style={styles.calendar}
+              markingType={'period'}
+              markedDates={getMarkedDates()}
+              onDayPress={(day) => {
+                if (!selectedRange.start || selectedRange.end) {
+                  // Start new range
+                  const startDate = new Date(day.timestamp);
+                  setSelectedRange({
+                    start: startDate,
+                    end: null
+                  });
+                  setDateRange({
+                    ...dateRange,
+                    fromDate: startDate,
+                    fromTime: new Date(startDate)
+                  });
+                } else {
+                  // Complete the range
+                  const endDate = new Date(day.timestamp);
+                  if (endDate >= selectedRange.start) {
+                    setSelectedRange({
+                      ...selectedRange,
+                      end: endDate
+                    });
+                    setDateRange({
+                      ...dateRange,
+                      toDate: endDate,
+                      toTime: new Date(endDate)
+                    });
+                  } else {
+                    // If end date is before start date, swap them
+                    setSelectedRange({
+                      start: endDate,
+                      end: selectedRange.start
+                    });
+                    setDateRange({
+                      ...dateRange,
+                      fromDate: endDate,
+                      fromTime: new Date(endDate),
+                      toDate: selectedRange.start,
+                      toTime: new Date(selectedRange.start)
+                    });
+                  }
+                }
+              }}
+              theme={{
+                selectedDayBackgroundColor: '#6200ee',
+                selectedDayTextColor: '#ffffff',
+                todayTextColor: '#6200ee',
+                arrowColor: '#6200ee',
+                'stylesheet.calendar.header': {
+                  dayTextAtIndex0: { color: '#6200ee' },
+                  dayTextAtIndex6: { color: '#6200ee' }
+                }
+              }}
+            />
+
+            {/* Compact Time Selection */}
+            <View style={styles.timeSelectionContainer}>
+              <View style={styles.timeColumn}>
+                <Text style={styles.timeLabel}>Start Time</Text>
+                <TouchableOpacity
+                  style={styles.timeButton}
+                  onPress={() => setShowPicker({ ...showPicker, fromTime: true })}
+                >
+                  <Text style={styles.timeButtonText}>
+                    {dateRange.fromTime.toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit'
+                    })}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.timeColumn}>
+                <Text style={styles.timeLabel}>End Time</Text>
+                <TouchableOpacity
+                  style={styles.timeButton}
+                  onPress={() => setShowPicker({ ...showPicker, toTime: true })}
+                >
+                  <Text style={styles.timeButtonText}>
+                    {dateRange.toTime.toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit'
+                    })}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Time Pickers (Android) */}
+            {Platform.OS === 'android' && (
+              <>
+                {showPicker.fromTime && (
+                  <DateTimePicker
+                    value={dateRange.fromTime}
+                    mode="time"
+                    onChange={(event, date) => {
+                      setShowPicker({ ...showPicker, fromTime: false });
+                      if (date) setDateRange({ ...dateRange, fromTime: date });
+                    }}
+                  />
+                )}
+                {showPicker.toTime && (
+                  <DateTimePicker
+                    value={dateRange.toTime}
+                    mode="time"
+                    onChange={(event, date) => {
+                      setShowPicker({ ...showPicker, toTime: false });
+                      if (date) setDateRange({ ...dateRange, toTime: date });
+                    }}
+                  />
+                )}
+              </>
+            )}
+
+            <View style={styles.buttonRow}>
+              <TouchableOpacity 
+                style={[styles.button, styles.cancelButton]}
+                onPress={() => setShowClearModal(false)}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.button, styles.clearButton]}
+                onPress={handleClearTranscriptions}
+              >
+                <Text style={[styles.buttonText, styles.clearButtonText]}>
+                  Clear
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -146,54 +394,86 @@ export default function HistoryScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Header />
+      <CalendarList
+        style={styles.calendar}
+        current={selectedDate}
+        markedDates={markedDates}
+        onDayPress={(day) => {
+          setSelectedDate(day.dateString);
+          updateMarkedDates(history.flat());
+        }}
+        pastScrollRange={12}
+        futureScrollRange={1}
+        scrollEnabled={true}
+        showScrollIndicator={true}
+        theme={{
+          calendarBackground: '#fff',
+          textSectionTitleColor: '#666',
+          selectedDayBackgroundColor: '#6200ee',
+          selectedDayTextColor: '#fff',
+          todayTextColor: '#6200ee',
+          dayTextColor: '#333',
+          textDisabledColor: '#d9e1e8',
+          dotColor: '#6200ee',
+          selectedDotColor: '#fff',
+          arrowColor: '#6200ee',
+          monthTextColor: '#333',
+          textDayFontSize: 14,
+          textMonthFontSize: 16,
+          textDayHeaderFontSize: 14
+        }}
+      />
+      
       <ScrollView style={styles.content}>
-        {history.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No conversations yet</Text>
-          </View>
-        ) : (
-          [...history]
-            .sort((a, b) => isNewestFirst ? 0 : -1)
-            .map(([date, conversations]) => (
-              <View key={date} style={styles.dateGroup}>
-                <Text style={styles.dateHeader}>{date}</Text>
-                {[...conversations]
-                  .sort((a, b) => isNewestFirst 
-                    ? new Date(b.timestamp) - new Date(a.timestamp)
-                    : new Date(a.timestamp) - new Date(b.timestamp)
-                  )
-                  .map((convo, index) => (
-                    <View key={`${date}-${index}`} style={styles.timelineItem}>
-                      <View style={styles.timelineLine} />
-                      <View style={styles.conversationCard}>
-                        <View style={styles.cardHeader}>
-                          <Text style={styles.timeText}>
-                            {formatTime(convo.timestamp)}
-                          </Text>
-                          <Text style={styles.sessionText}>
-                            {convo.sessionId 
-                              ? `Session ${convo.sessionId.split('_')[1] || 'Unknown'}`
-                              : 'Legacy Session'}
-                          </Text>
-                        </View>
-                        
-                        <View style={styles.utterancesContainer}>
-                          {convo.utterances.map((utterance, i) => (
-                            <Text key={i} style={styles.utteranceText}>
-                              <Text style={styles.speakerText}>
-                                {utterance.speaker}:
-                              </Text>
-                              {" " + utterance.text}
+        {history
+          .filter(([date]) => date === selectedDate)
+          .map(([date, conversations]) => (
+            <View key={date} style={styles.dateGroup}>
+              {conversations
+                .sort((a, b) => isNewestFirst 
+                  ? new Date(b.timestamp) - new Date(a.timestamp)
+                  : new Date(a.timestamp) - new Date(b.timestamp)
+                )
+                .map((convo, index) => (
+                  <View key={`${date}-${index}`} style={styles.timelineItem}>
+                    <View style={styles.timelineLine} />
+                    <View style={styles.conversationCard}>
+                      <View style={styles.cardHeader}>
+                        <Text style={styles.timeText}>
+                          {formatTime(convo.timestamp)}
+                        </Text>
+                        <Text style={styles.sessionText}>
+                          {convo.sessionId 
+                            ? `Session ${convo.sessionId.split('_')[1] || 'Unknown'}`
+                            : 'Legacy Session'}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.utterancesContainer}>
+                        {convo.utterances.map((utterance, i) => (
+                          <Text key={i} style={styles.utteranceText}>
+                            <Text style={styles.speakerText}>
+                              {utterance.speaker}:
                             </Text>
-                          ))}
-                        </View>
+                            {" " + utterance.text}
+                          </Text>
+                        ))}
                       </View>
                     </View>
-                  ))}
-              </View>
-            ))
+                  </View>
+                ))}
+            </View>
+          ))}
+        
+        {!history.some(([date]) => date === selectedDate) && (
+          <View style={styles.emptyDateState}>
+            <Text style={styles.emptyDateText}>
+              No recordings for {new Date(selectedDate).toLocaleDateString()}
+            </Text>
+          </View>
         )}
       </ScrollView>
+      <ClearTranscriptionsModal />
     </View>
   );
 }
@@ -324,5 +604,119 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 15,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  dateTimeSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 8,
+    color: '#666',
+  },
+  dateTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  dateTimeButton: {
+    flex: 1,
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  dateTimeText: {
+    color: '#6200ee',
+    fontSize: 16,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  button: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f5f5f5',
+  },
+  clearButton: {
+    backgroundColor: '#dc3545',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  clearButtonText: {
+    color: 'white',
+  },
+  calendar: {
+    height: 350,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  timeSelectionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  timeColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  timeLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  timeButton: {
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  timeButtonText: {
+    color: '#6200ee',
+    fontSize: 16,
+  },
+  emptyDateState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 40,
+    paddingHorizontal: 20,
+  },
+  emptyDateText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
   },
 }); 
