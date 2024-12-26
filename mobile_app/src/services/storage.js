@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TRANSCRIPTIONS_KEY = '@transcriptions';
+const SUMMARIES_KEY = '@voice_notes_summaries';
 
 export const saveTranscription = async (transcriptionData) => {
   try {
@@ -171,5 +172,46 @@ export const clearTranscriptionsByDateRange = async (startDate, endDate) => {
   } catch (error) {
     console.error('Error clearing transcriptions by date range:', error);
     throw error;
+  }
+};
+
+export const getSummaries = async () => {
+  try {
+    const summaries = await AsyncStorage.getItem(SUMMARIES_KEY);
+    return summaries ? JSON.parse(summaries) : [];
+  } catch (error) {
+    console.error('Error getting summaries:', error);
+    return [];
+  }
+};
+
+export const saveSummary = async (summary) => {
+  try {
+    const summaries = await getSummaries();
+    const existingIndex = summaries.findIndex(s => s.date === summary.date);
+    
+    if (existingIndex >= 0) {
+      summaries[existingIndex] = summary;
+    } else {
+      summaries.push(summary);
+    }
+    
+    await AsyncStorage.setItem(SUMMARIES_KEY, JSON.stringify(summaries));
+    return true;
+  } catch (error) {
+    console.error('Error saving summary:', error);
+    return false;
+  }
+};
+
+export const deleteSummary = async (date) => {
+  try {
+    const summaries = await getSummaries();
+    const filtered = summaries.filter(s => s.date !== date);
+    await AsyncStorage.setItem(SUMMARIES_KEY, JSON.stringify(filtered));
+    return true;
+  } catch (error) {
+    console.error('Error deleting summary:', error);
+    return false;
   }
 }; 
