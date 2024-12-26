@@ -24,7 +24,6 @@ const defaultSettings = {
   autoPunctuation: true,
   showTabLabels: true,
   tabBarAnimation: true,
-  sampleDataAdded: false,
 };
 
 export default function SettingsScreen() {
@@ -127,11 +126,6 @@ export default function SettingsScreen() {
       
       // Save to storage
       await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(allTranscriptions));
-      
-      // Update settings to mark sample data as added
-      const newSettings = { ...settings, sampleDataAdded: true };
-      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
-      setSettings(newSettings);
       
       Alert.alert('Success', 'Sample transcriptions have been added!');
     } catch (error) {
@@ -248,18 +242,11 @@ export default function SettingsScreen() {
             <Text style={styles.sectionTitle}>Development</Text>
             
             <TouchableOpacity 
-              style={[
-                styles.button,
-                settings.sampleDataAdded && styles.buttonDisabled
-              ]}
+              style={styles.button}
               onPress={generateSampleData}
-              disabled={settings.sampleDataAdded}
             >
-              <Text style={[
-                styles.buttonText,
-                settings.sampleDataAdded && styles.buttonTextDisabled
-              ]}>
-                {settings.sampleDataAdded ? 'Sample Data Added' : 'Add Sample Data'}
+              <Text style={styles.buttonText}>
+                Add Sample Data
               </Text>
             </TouchableOpacity>
           </View>
