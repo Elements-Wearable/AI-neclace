@@ -1,3 +1,5 @@
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -174,6 +176,26 @@ export default function SummaryScreen({ navigation }) {
     }
   };
 
+  const handleShare = async () => {
+    try {
+      // Create a temporary file with the summary content
+      const shareDate = new Date(selectedDate).toLocaleDateString();
+      const shareContent = `Summary for ${shareDate}\n\n${summaryText}`;
+      
+      const tempFile = FileSystem.cacheDirectory + 'summary.txt';
+      await FileSystem.writeAsStringAsync(tempFile, shareContent);
+
+      await Sharing.shareAsync(tempFile, {
+        mimeType: 'text/plain',
+        dialogTitle: `Share Summary for ${shareDate}`,
+        UTI: 'public.plain-text'
+      });
+    } catch (error) {
+      console.error('Error sharing summary:', error);
+      Alert.alert('Error', 'Failed to share summary');
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -225,12 +247,20 @@ export default function SummaryScreen({ navigation }) {
               <Text style={styles.generateButtonText}>Generate Summary</Text>
             </TouchableOpacity>
             {summaryText && !isEditing && (
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={handleDeleteSummary}
-              >
-                <Text style={styles.deleteButtonText}>Delete</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={styles.shareButton}
+                  onPress={handleShare}
+                >
+                  <Text style={styles.shareButtonText}>Share</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={handleDeleteSummary}
+                >
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>
@@ -448,5 +478,15 @@ const styles = StyleSheet.create({
   },
   emptyLine: {
     height: 12,
+  },
+  shareButton: {
+    backgroundColor: 'rgba(25, 118, 210, 0.1)', // Light blue background
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  shareButtonText: {
+    color: '#1976d2', // Material blue
+    fontWeight: '500',
   },
 }); 
