@@ -1,4 +1,4 @@
-# Elements AI Necklace
+# AI Necklace
 
 Smart necklace project combining IoT firmware, mobile app, and cloud services.
 
@@ -22,6 +22,7 @@ Smart necklace project combining IoT firmware, mobile app, and cloud services.
 ### Development Setup
 
 1. Clone and open in VS Code:
+
    ```bash
    git clone https://github.com/yourusername/Elements-AI-neclace
    code Elements-AI-neclace
@@ -37,6 +38,7 @@ Smart necklace project combining IoT firmware, mobile app, and cloud services.
    - Firmware: `west build` in `firmware/zephyr-app`
 
 ## 📁 Project Structure
+
 ```plaintext
 project-root/
 ├── frontend/ # Expo mobile/web app
@@ -70,7 +72,7 @@ project-root/
 
 ## 📄 License
 
-[Add your license here]
+MIT
 
 ## 🤝 Contributing
 
