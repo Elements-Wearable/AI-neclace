@@ -2,16 +2,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 import {
     Alert,
+    Platform,
+    SafeAreaView,
     ScrollView,
     StyleSheet,
     Switch,
     Text,
     TouchableOpacity,
-    View,
-    SafeAreaView,
-    Platform
+    View
 } from 'react-native';
-import { SETTINGS_KEY, SUPPORTED_LANGUAGES } from '../config/constants';
+import { SETTINGS_KEY, SUPPORTED_LANGUAGES, TRANSCRIPTIONS_KEY } from '../config/constants';
+import { SAMPLE_CONVERSATIONS } from '../config/sampleData';
 
 const defaultSettings = {
   language: 'en',
@@ -23,6 +24,7 @@ const defaultSettings = {
   autoPunctuation: true,
   showTabLabels: true,
   tabBarAnimation: true,
+  sampleDataAdded: false,
 };
 
 export default function SettingsScreen() {
@@ -87,6 +89,55 @@ export default function SettingsScreen() {
         }
       ]
     );
+  };
+
+  const generateSampleData = async () => {
+    try {
+      // Get existing transcriptions
+      const existingTranscriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
+      const parsedExisting = existingTranscriptions ? JSON.parse(existingTranscriptions) : [];
+      
+      // Generate random transcriptions over yesterday and today
+      const newTranscriptions = [];
+      const now = new Date();
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      SAMPLE_CONVERSATIONS.forEach((conversation) => {
+        // Randomly choose between today and yesterday
+        const baseDate = Math.random() < 0.5 ? now : yesterday;
+        
+        // Random time between 8 AM and 8 PM
+        const randomHours = Math.floor(Math.random() * 12) + 8;
+        const randomMinutes = Math.floor(Math.random() * 60);
+        
+        const timestamp = new Date(baseDate);
+        timestamp.setHours(randomHours, randomMinutes, 0, 0);
+        
+        newTranscriptions.push({
+          id: `sample_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          sessionId: `session_${conversation.title.toLowerCase().replace(/\s+/g, '_')}_${Math.random().toString(36).substr(2, 4)}`,
+          timestamp: timestamp.toISOString(),
+          utterances: conversation.utterances
+        });
+      });
+      
+      // Combine with existing transcriptions
+      const allTranscriptions = [...parsedExisting, ...newTranscriptions];
+      
+      // Save to storage
+      await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(allTranscriptions));
+      
+      // Update settings to mark sample data as added
+      const newSettings = { ...settings, sampleDataAdded: true };
+      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+      setSettings(newSettings);
+      
+      Alert.alert('Success', 'Sample transcriptions have been added!');
+    } catch (error) {
+      console.error('Error generating sample data:', error);
+      Alert.alert('Error', 'Failed to generate sample data');
+    }
   };
 
   return (
@@ -193,6 +244,26 @@ export default function SettingsScreen() {
             </View>
           </View>
 
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Development</Text>
+            
+            <TouchableOpacity 
+              style={[
+                styles.button,
+                settings.sampleDataAdded && styles.buttonDisabled
+              ]}
+              onPress={generateSampleData}
+              disabled={settings.sampleDataAdded}
+            >
+              <Text style={[
+                styles.buttonText,
+                settings.sampleDataAdded && styles.buttonTextDisabled
+              ]}>
+                {settings.sampleDataAdded ? 'Sample Data Added' : 'Add Sample Data'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity 
             style={styles.resetButton}
             onPress={resetSettings}
@@ -263,5 +334,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  button: {
+    backgroundColor: '#6200ee',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  buttonDisabled: {
+    backgroundColor: '#e0e0e0',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  buttonTextDisabled: {
+    color: '#999',
   },
 }); 
