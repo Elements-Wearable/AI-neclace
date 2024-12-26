@@ -49,6 +49,15 @@ export default function SettingsScreen() {
       const newSettings = { ...settings, [key]: value };
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
       setSettings(newSettings);
+      
+      // Force an immediate update
+      if (key === 'showTabLabels') {
+        // Add a small delay to ensure the AsyncStorage write is complete
+        setTimeout(async () => {
+          const verify = await AsyncStorage.getItem(SETTINGS_KEY);
+          console.log('Updated settings:', verify);
+        }, 100);
+      }
     } catch (error) {
       console.error('Error saving setting:', error);
       Alert.alert('Error', 'Failed to save setting');
