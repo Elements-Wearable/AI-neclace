@@ -7,7 +7,9 @@ import {
     Switch,
     Text,
     TouchableOpacity,
-    View
+    View,
+    SafeAreaView,
+    Platform
 } from 'react-native';
 import { SETTINGS_KEY, SUPPORTED_LANGUAGES } from '../config/constants';
 
@@ -88,123 +90,130 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recording</Text>
-          
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Language</Text>
-            <TouchableOpacity
-              style={styles.selector}
-              onPress={() => {
-                Alert.alert(
-                  'Select Language',
-                  '',
-                  SUPPORTED_LANGUAGES.map(lang => ({
-                    text: lang.name,
-                    onPress: () => updateSetting('language', lang.code)
-                  }))
-                );
-              }}
-            >
-              <Text style={styles.selectorText}>
-                {SUPPORTED_LANGUAGES.find(l => l.code === settings.language)?.name || 'English'}
-              </Text>
-            </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <ScrollView style={styles.content}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recording</Text>
+            
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Language</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={() => {
+                  Alert.alert(
+                    'Select Language',
+                    '',
+                    SUPPORTED_LANGUAGES.map(lang => ({
+                      text: lang.name,
+                      onPress: () => updateSetting('language', lang.code)
+                    }))
+                  );
+                }}
+              >
+                <Text style={styles.selectorText}>
+                  {SUPPORTED_LANGUAGES.find(l => l.code === settings.language)?.name || 'English'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>High Quality Audio</Text>
+              <Switch
+                value={settings.highQualityAudio}
+                onValueChange={(value) => updateSetting('highQualityAudio', value)}
+              />
+            </View>
           </View>
 
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>High Quality Audio</Text>
-            <Switch
-              value={settings.highQualityAudio}
-              onValueChange={(value) => updateSetting('highQualityAudio', value)}
-            />
-          </View>
-        </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Transcription</Text>
+            
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Auto Speaker Detection</Text>
+              <Switch
+                value={settings.autoSpeakerDetection}
+                onValueChange={(value) => updateSetting('autoSpeakerDetection', value)}
+              />
+            </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Transcription</Text>
-          
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Auto Speaker Detection</Text>
-            <Switch
-              value={settings.autoSpeakerDetection}
-              onValueChange={(value) => updateSetting('autoSpeakerDetection', value)}
-            />
-          </View>
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Maximum Speakers</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={() => {
+                  Alert.alert(
+                    'Select Maximum Speakers',
+                    '',
+                    [2,3,4,5,6].map(num => ({
+                      text: num.toString(),
+                      onPress: () => updateSetting('maxSpeakers', num)
+                    }))
+                  );
+                }}
+              >
+                <Text style={styles.selectorText}>{settings.maxSpeakers}</Text>
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Maximum Speakers</Text>
-            <TouchableOpacity
-              style={styles.selector}
-              onPress={() => {
-                Alert.alert(
-                  'Select Maximum Speakers',
-                  '',
-                  [2,3,4,5,6].map(num => ({
-                    text: num.toString(),
-                    onPress: () => updateSetting('maxSpeakers', num)
-                  }))
-                );
-              }}
-            >
-              <Text style={styles.selectorText}>{settings.maxSpeakers}</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Smart Formatting</Text>
+              <Switch
+                value={settings.smartFormatting}
+                onValueChange={(value) => updateSetting('smartFormatting', value)}
+              />
+            </View>
 
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Smart Formatting</Text>
-            <Switch
-              value={settings.smartFormatting}
-              onValueChange={(value) => updateSetting('smartFormatting', value)}
-            />
-          </View>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Auto Punctuation</Text>
-            <Switch
-              value={settings.autoPunctuation}
-              onValueChange={(value) => updateSetting('autoPunctuation', value)}
-            />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Interface</Text>
-          
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Show Tab Labels</Text>
-            <Switch
-              value={settings.showTabLabels}
-              onValueChange={(value) => updateSetting('showTabLabels', value)}
-            />
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Auto Punctuation</Text>
+              <Switch
+                value={settings.autoPunctuation}
+                onValueChange={(value) => updateSetting('autoPunctuation', value)}
+              />
+            </View>
           </View>
 
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Tab Animation</Text>
-            <Switch
-              value={settings.tabBarAnimation}
-              onValueChange={(value) => updateSetting('tabBarAnimation', value)}
-            />
-          </View>
-        </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Interface</Text>
+            
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Show Tab Labels</Text>
+              <Switch
+                value={settings.showTabLabels}
+                onValueChange={(value) => updateSetting('showTabLabels', value)}
+              />
+            </View>
 
-        <TouchableOpacity 
-          style={styles.resetButton}
-          onPress={resetSettings}
-        >
-          <Text style={styles.resetButtonText}>Reset to Defaults</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Tab Animation</Text>
+              <Switch
+                value={settings.tabBarAnimation}
+                onValueChange={(value) => updateSetting('tabBarAnimation', value)}
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.resetButton}
+            onPress={resetSettings}
+          >
+            <Text style={styles.resetButtonText}>Reset to Defaults</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingTop: Platform.OS === 'android' ? 25 : 0,
   },
   content: {
     flex: 1,

@@ -4,6 +4,8 @@ import React from 'react';
 import {
   AppState,
   Modal,
+  Platform,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,9 +22,14 @@ import * as storage from '../services/storage';
 
 // Styles
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingTop: Platform.OS === 'android' ? 25 : 0, // Add padding for Android
   },
   scrollView: {
     flex: 1,
@@ -1080,80 +1087,82 @@ export default function HomeScreen({ navigation }) {
   // Rest of your component code...
 
   return (
-    <View style={styles.container}>
-      {/* Top Section - Recording Controls */}
-      <View style={styles.topSection}>
-        <TouchableOpacity
-          style={styles.recordButton}
-          onPress={isRecording ? stopRecording : startRecording}
-          disabled={false}
-        >
-          <View style={[
-            styles.recordButtonInner,
-            isRecording && styles.recordingActive,
-            (!isRecording && isProcessingChunk) && styles.processingActive
-          ]}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {/* Top Section - Recording Controls */}
+        <View style={styles.topSection}>
+          <TouchableOpacity
+            style={styles.recordButton}
+            onPress={isRecording ? stopRecording : startRecording}
+            disabled={false}
+          >
             <View style={[
-              styles.recordDot,
-              isRecording && styles.recordingDot,
-              (!isRecording && isProcessingChunk) && styles.processingDot
-            ]} />
-          </View>
-        </TouchableOpacity>
-        
-        <Text style={styles.recordingStatus}>
-          {!isRecording && isProcessingChunk 
-            ? 'Processing last recording...' 
-            : isRecording 
-              ? 'Recording...' 
-              : 'Tap to Record'
-          }
-        </Text>
-
-        {processingStatus && (
-          <View style={styles.processingInfo}>
-            <View style={styles.processingStatusContainer}>
-              <Text style={styles.processingInfoText}>
-                {processingStatus}
-              </Text>
-              {totalChunks > 0 && (
-                <Text style={styles.processingProgress}>
-                  ({processedChunks}/{totalChunks})
-                </Text>
-              )}
+              styles.recordButtonInner,
+              isRecording && styles.recordingActive,
+              (!isRecording && isProcessingChunk) && styles.processingActive
+            ]}>
+              <View style={[
+                styles.recordDot,
+                isRecording && styles.recordingDot,
+                (!isRecording && isProcessingChunk) && styles.processingDot
+              ]} />
             </View>
-          </View>
-        )}
-      </View>
+          </TouchableOpacity>
+          
+          <Text style={styles.recordingStatus}>
+            {!isRecording && isProcessingChunk 
+              ? 'Processing last recording...' 
+              : isRecording 
+                ? 'Recording...' 
+                : 'Tap to Record'
+            }
+          </Text>
 
-      {/* Middle Section - Live Transcription */}
-      <View style={styles.transcriptionWrapper}>
-        <ScrollView 
-          style={styles.transcriptionScroll}
-          contentContainerStyle={styles.transcriptionContent}
-        >
-          {transcription.map((utterance) => (
-            <View
-              key={utterance.id}
-              style={[
-                styles.utteranceContainer,
-                { borderLeftColor: getColorForSpeaker(utterance.speakerId) }
-              ]}
-            >
-              <Text style={styles.utteranceHeader}>
-                <Text style={[styles.speakerLabel, { color: getColorForSpeaker(utterance.speakerId) }]}>
-                  {utterance.speaker}
+          {processingStatus && (
+            <View style={styles.processingInfo}>
+              <View style={styles.processingStatusContainer}>
+                <Text style={styles.processingInfoText}>
+                  {processingStatus}
                 </Text>
-                <Text style={styles.timeLabel}>{formatTime(utterance.timeStart)}</Text>
-              </Text>
-              <Text style={styles.utteranceText}>{utterance.text}</Text>
+                {totalChunks > 0 && (
+                  <Text style={styles.processingProgress}>
+                    ({processedChunks}/{totalChunks})
+                  </Text>
+                )}
+              </View>
             </View>
-          ))}
-        </ScrollView>
-      </View>
+          )}
+        </View>
 
-      {/* Add the language selector modal */}
-      <LanguageSelector />
-    </View>
+        {/* Middle Section - Live Transcription */}
+        <View style={styles.transcriptionWrapper}>
+          <ScrollView 
+            style={styles.transcriptionScroll}
+            contentContainerStyle={styles.transcriptionContent}
+          >
+            {transcription.map((utterance) => (
+              <View
+                key={utterance.id}
+                style={[
+                  styles.utteranceContainer,
+                  { borderLeftColor: getColorForSpeaker(utterance.speakerId) }
+                ]}
+              >
+                <Text style={styles.utteranceHeader}>
+                  <Text style={[styles.speakerLabel, { color: getColorForSpeaker(utterance.speakerId) }]}>
+                    {utterance.speaker}
+                  </Text>
+                  <Text style={styles.timeLabel}>{formatTime(utterance.timeStart)}</Text>
+                </Text>
+                <Text style={styles.utteranceText}>{utterance.text}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Add the language selector modal */}
+        <LanguageSelector />
+      </View>
+    </SafeAreaView>
   );
 } 
