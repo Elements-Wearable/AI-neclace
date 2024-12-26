@@ -1,6 +1,7 @@
 // Storage Keys
 export const SETTINGS_KEY = '@app_settings';
 export const TRANSCRIPTIONS_KEY = '@transcriptions';
+export const SUMMARIES_KEY = '@voice_notes_summaries';
 
 // API Keys
 export const DEEPGRAM_API_KEY = '1b44c88da4fd678d433ab3a10326be8621e49621';
