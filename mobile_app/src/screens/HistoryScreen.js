@@ -31,7 +31,10 @@ export default function HistoryScreen({ navigation }) {
     fromTime: false,
     toTime: false,
   });
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
   const [markedDates, setMarkedDates] = useState({});
 
   React.useEffect(() => {
@@ -51,17 +54,20 @@ export default function HistoryScreen({ navigation }) {
       console.log('📚 Loading transcription history...');
       
       const transcriptions = await storage.getTranscriptions();
-      console.log('📊 Found transcriptions:', transcriptions.length);
+      console.log('📊 Found transcriptions:', transcriptions?.length || 0);
       
-      if (transcriptions.length > 0) {
+      if (transcriptions && transcriptions.length > 0) {
         console.log('📝 Sample transcription:', JSON.stringify(transcriptions[0], null, 2));
+        
+        const grouped = groupByDate(transcriptions);
+        console.log('📅 Grouped by date:', Object.keys(grouped).length, 'dates');
+        
+        setHistory(grouped);
+        updateMarkedDates(transcriptions);
+      } else {
+        setHistory([]);
+        updateMarkedDates([]);
       }
-      
-      const grouped = groupByDate(transcriptions);
-      console.log('📅 Grouped by date:', Object.keys(grouped).length, 'dates');
-      
-      setHistory(grouped);
-      updateMarkedDates(transcriptions);
     } catch (error) {
       console.error('❌ Error loading history:', error);
       // Show error to user
@@ -76,21 +82,20 @@ export default function HistoryScreen({ navigation }) {
 
   const groupByDate = (transcriptions) => {
     const groups = transcriptions.reduce((acc, item) => {
-      const date = new Date(item.timestamp).toLocaleDateString();
+      if (!item?.timestamp) return acc;
+
+      // Format date consistently using ISO string
+      const date = new Date(item.timestamp).toISOString().split('T')[0];
       if (!acc[date]) acc[date] = [];
       acc[date].unshift(item);
       return acc;
     }, {});
 
-    // Sort dates in descending order (newest first)
+    // Sort dates using ISO string format
     return Object.entries(groups)
       .sort(([dateA, itemsA], [dateB, itemsB]) => {
         // Primary sort by date (newest first)
-        const dateComparison = new Date(dateB) - new Date(dateA);
-        if (dateComparison !== 0) return dateComparison;
-        
-        // Secondary sort by timestamp if dates are the same
-        return new Date(itemsB[0].timestamp) - new Date(itemsA[0].timestamp);
+        return new Date(dateB) - new Date(dateA);
       });
   };
 
@@ -154,6 +159,8 @@ export default function HistoryScreen({ navigation }) {
   const updateMarkedDates = (transcriptions) => {
     const marked = {};
     transcriptions.forEach(item => {
+      if (!item?.timestamp) return;
+      
       const date = new Date(item.timestamp).toISOString().split('T')[0];
       marked[date] = {
         marked: true,
