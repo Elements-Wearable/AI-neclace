@@ -1,17 +1,15 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    Modal,
-    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View
 } from 'react-native';
-import { Calendar, CalendarList } from 'react-native-calendars';
+import { CalendarList } from 'react-native-calendars';
+import ClearHistoryModal from '../components/ClearHistoryModal';
 import * as storage from '../services/storage';
 
 export default function HistoryScreen({ navigation }) {
@@ -136,19 +134,10 @@ export default function HistoryScreen({ navigation }) {
     );
   };
 
-  const handleClearTranscriptions = async () => {
+  const handleClearRange = async (range) => {
     try {
-      const startDateTime = new Date(dateRange.fromDate);
-      startDateTime.setHours(dateRange.fromTime.getHours());
-      startDateTime.setMinutes(dateRange.fromTime.getMinutes());
-
-      const endDateTime = new Date(dateRange.toDate);
-      endDateTime.setHours(dateRange.toTime.getHours());
-      endDateTime.setMinutes(dateRange.toTime.getMinutes());
-
-      await storage.clearTranscriptionsByDateRange(startDateTime, endDateTime);
+      await storage.clearTranscriptionsByDateRange(range.start, range.end);
       setShowClearModal(false);
-      // Refresh history
       loadHistory();
     } catch (error) {
       console.error('Error clearing transcriptions:', error);
@@ -158,17 +147,34 @@ export default function HistoryScreen({ navigation }) {
 
   const updateMarkedDates = (transcriptions) => {
     const marked = {};
+    
+    // First pass: mark all dates with transcriptions
     transcriptions.forEach(item => {
       if (!item?.timestamp) return;
       
       const date = new Date(item.timestamp).toISOString().split('T')[0];
-      marked[date] = {
-        marked: true,
-        dotColor: '#6200ee',
-        selected: date === selectedDate,
+      if (!marked[date]) {
+        marked[date] = {
+          marked: true,
+          dotColor: '#6200ee'
+        };
+      }
+    });
+
+    // Second pass: add selection to currently selected date
+    if (selectedDate && marked[selectedDate]) {
+      marked[selectedDate] = {
+        ...marked[selectedDate],
+        selected: true,
         selectedColor: 'rgba(98, 0, 238, 0.1)'
       };
-    });
+    } else if (selectedDate) {
+      marked[selectedDate] = {
+        selected: true,
+        selectedColor: 'rgba(98, 0, 238, 0.1)'
+      };
+    }
+
     setMarkedDates(marked);
   };
 
@@ -195,200 +201,6 @@ export default function HistoryScreen({ navigation }) {
     </View>
   );
 
-  const ClearTranscriptionsModal = () => {
-    const [selectedRange, setSelectedRange] = useState({
-      start: null,
-      end: null
-    });
-
-    // Function to generate marked dates object for the range
-    const getMarkedDates = () => {
-      if (!selectedRange.start) return {};
-
-      const markedDates = {};
-      const start = selectedRange.start.toISOString().split('T')[0];
-      markedDates[start] = {
-        startingDay: true,
-        color: '#6200ee',
-        textColor: 'white'
-      };
-
-      if (selectedRange.end) {
-        const end = selectedRange.end.toISOString().split('T')[0];
-        markedDates[end] = {
-          endingDay: true,
-          color: '#6200ee',
-          textColor: 'white'
-        };
-
-        // Fill in the middle dates
-        let currentDate = new Date(selectedRange.start);
-        currentDate.setDate(currentDate.getDate() + 1);
-        
-        while (currentDate < selectedRange.end) {
-          const dateString = currentDate.toISOString().split('T')[0];
-          markedDates[dateString] = {
-            color: '#6200ee',
-            textColor: 'white'
-          };
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
-      }
-
-      return markedDates;
-    };
-
-    return (
-      <Modal
-        visible={showClearModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowClearModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Clear Transcriptions</Text>
-            
-            <Calendar
-              style={styles.calendar}
-              markingType={'period'}
-              markedDates={getMarkedDates()}
-              onDayPress={(day) => {
-                if (!selectedRange.start || selectedRange.end) {
-                  // Start new range
-                  const startDate = new Date(day.timestamp);
-                  setSelectedRange({
-                    start: startDate,
-                    end: null
-                  });
-                  setDateRange({
-                    ...dateRange,
-                    fromDate: startDate,
-                    fromTime: new Date(startDate)
-                  });
-                } else {
-                  // Complete the range
-                  const endDate = new Date(day.timestamp);
-                  if (endDate >= selectedRange.start) {
-                    setSelectedRange({
-                      ...selectedRange,
-                      end: endDate
-                    });
-                    setDateRange({
-                      ...dateRange,
-                      toDate: endDate,
-                      toTime: new Date(endDate)
-                    });
-                  } else {
-                    // If end date is before start date, swap them
-                    setSelectedRange({
-                      start: endDate,
-                      end: selectedRange.start
-                    });
-                    setDateRange({
-                      ...dateRange,
-                      fromDate: endDate,
-                      fromTime: new Date(endDate),
-                      toDate: selectedRange.start,
-                      toTime: new Date(selectedRange.start)
-                    });
-                  }
-                }
-              }}
-              theme={{
-                selectedDayBackgroundColor: '#6200ee',
-                selectedDayTextColor: '#ffffff',
-                todayTextColor: '#6200ee',
-                arrowColor: '#6200ee',
-                'stylesheet.calendar.header': {
-                  dayTextAtIndex0: { color: '#6200ee' },
-                  dayTextAtIndex6: { color: '#6200ee' }
-                }
-              }}
-            />
-
-            {/* Compact Time Selection */}
-            <View style={styles.timeSelectionContainer}>
-              <View style={styles.timeColumn}>
-                <Text style={styles.timeLabel}>Start Time</Text>
-                <TouchableOpacity
-                  style={styles.timeButton}
-                  onPress={() => setShowPicker({ ...showPicker, fromTime: true })}
-                >
-                  <Text style={styles.timeButtonText}>
-                    {dateRange.fromTime.toLocaleTimeString([], { 
-                      hour: '2-digit', 
-                      minute: '2-digit'
-                    })}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.timeColumn}>
-                <Text style={styles.timeLabel}>End Time</Text>
-                <TouchableOpacity
-                  style={styles.timeButton}
-                  onPress={() => setShowPicker({ ...showPicker, toTime: true })}
-                >
-                  <Text style={styles.timeButtonText}>
-                    {dateRange.toTime.toLocaleTimeString([], { 
-                      hour: '2-digit', 
-                      minute: '2-digit'
-                    })}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Time Pickers (Android) */}
-            {Platform.OS === 'android' && (
-              <>
-                {showPicker.fromTime && (
-                  <DateTimePicker
-                    value={dateRange.fromTime}
-                    mode="time"
-                    onChange={(event, date) => {
-                      setShowPicker({ ...showPicker, fromTime: false });
-                      if (date) setDateRange({ ...dateRange, fromTime: date });
-                    }}
-                  />
-                )}
-                {showPicker.toTime && (
-                  <DateTimePicker
-                    value={dateRange.toTime}
-                    mode="time"
-                    onChange={(event, date) => {
-                      setShowPicker({ ...showPicker, toTime: false });
-                      if (date) setDateRange({ ...dateRange, toTime: date });
-                    }}
-                  />
-                )}
-              </>
-            )}
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity 
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => setShowClearModal(false)}
-              >
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.button, styles.clearButton]}
-                onPress={handleClearTranscriptions}
-              >
-                <Text style={[styles.buttonText, styles.clearButtonText]}>
-                  Clear
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -407,8 +219,32 @@ export default function HistoryScreen({ navigation }) {
         markedDates={markedDates}
         onDayPress={(day) => {
           setSelectedDate(day.dateString);
-          updateMarkedDates(history.flat());
+          const newMarked = { ...markedDates };
+          
+          // Remove selection from previously selected date
+          Object.keys(newMarked).forEach(date => {
+            if (newMarked[date].selected) {
+              if (newMarked[date].marked) {
+                newMarked[date] = {
+                  marked: true,
+                  dotColor: '#6200ee'
+                };
+              } else {
+                delete newMarked[date];
+              }
+            }
+          });
+
+          // Add selection to new date
+          newMarked[day.dateString] = {
+            ...(newMarked[day.dateString] || {}),
+            selected: true,
+            selectedColor: 'rgba(98, 0, 238, 0.1)'
+          };
+
+          setMarkedDates(newMarked);
         }}
+        markingType={'dot'}
         pastScrollRange={12}
         futureScrollRange={1}
         scrollEnabled={true}
@@ -480,7 +316,11 @@ export default function HistoryScreen({ navigation }) {
           </View>
         )}
       </ScrollView>
-      <ClearTranscriptionsModal />
+      <ClearHistoryModal
+        visible={showClearModal}
+        onClose={() => setShowClearModal(false)}
+        onClear={handleClearRange}
+      />
     </View>
   );
 }
@@ -725,5 +565,11 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  dateSelectionText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 12,
   },
 }); 
