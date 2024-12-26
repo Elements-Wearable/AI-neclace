@@ -530,6 +530,7 @@ export default function HomeScreen({ navigation }) {
   const [selectedLanguage, setSelectedLanguage] = React.useState('en');
   const [showLanguageModal, setShowLanguageModal] = React.useState(false);
   const [appSettings, setAppSettings] = React.useState(null);
+  const [settings, setSettings] = React.useState(null);
 
   // Refs
   const recordingInterval = React.useRef(null);
@@ -546,7 +547,7 @@ export default function HomeScreen({ navigation }) {
       try {
         const savedSettings = await AsyncStorage.getItem(SETTINGS_KEY);
         if (savedSettings) {
-          setAppSettings(JSON.parse(savedSettings));
+          setSettings(JSON.parse(savedSettings));
         }
       } catch (error) {
         console.error('Error loading settings:', error);
@@ -596,23 +597,25 @@ export default function HomeScreen({ navigation }) {
       const newRecording = new Audio.Recording();
       await newRecording.prepareToRecordAsync({
         android: {
-          extension: '.wav',
-          outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_DEFAULT,
-          audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_DEFAULT,
-          sampleRate: 16000,
-          numberOfChannels: 1,
-          bitRate: 16000 * 16,
+          extension: '.m4a',
+          outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_MPEG_4,
+          audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_AAC,
+          sampleRate: settings?.highQualityAudio ? 44100 : 22050,
+          numberOfChannels: settings?.highQualityAudio ? 2 : 1,
+          bitRate: settings?.highQualityAudio ? 128000 : 64000,
         },
         ios: {
-          extension: '.wav',
-          audioQuality: Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_HIGH,
-          sampleRate: 16000,
-          numberOfChannels: 1,
-          bitRate: 16000 * 16,
-          linearPCMBitDepth: 16,
+          extension: '.m4a',
+          audioQuality: settings?.highQualityAudio ? 
+            Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_MAX :
+            Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_MEDIUM,
+          sampleRate: settings?.highQualityAudio ? 44100 : 22050,
+          numberOfChannels: settings?.highQualityAudio ? 2 : 1,
+          bitRate: settings?.highQualityAudio ? 128000 : 64000,
+          linearPCMBitDepth: settings?.highQualityAudio ? 16 : 8,
           linearPCMIsBigEndian: false,
           linearPCMIsFloat: false,
-        }
+        },
       });
       
       await newRecording.startAsync();

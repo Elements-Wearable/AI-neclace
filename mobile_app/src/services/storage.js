@@ -129,4 +129,33 @@ export const getTranscriptionsBySession = async (sessionId) => {
     console.error('Error getting transcriptions by session:', error);
     throw error;
   }
+};
+
+export const processTranscription = async (audioUri) => {
+  try {
+    const settings = await AsyncStorage.getItem(SETTINGS_KEY);
+    const parsedSettings = settings ? JSON.parse(settings) : defaultSettings;
+
+    const response = await fetch('https://api.deepgram.com/v1/listen', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${DEEPGRAM_API_KEY}`,
+        'Content-Type': 'audio/wav',
+      },
+      body: await fetch(audioUri).then(r => r.blob()),
+      query: {
+        language: parsedSettings.language,
+        model: 'general',
+        smart_format: parsedSettings.smartFormatting,
+        punctuate: parsedSettings.autoPunctuation,
+        diarize: parsedSettings.autoSpeakerDetection,
+        speakers: parsedSettings.maxSpeakers,
+      },
+    });
+
+    // ... process response
+  } catch (error) {
+    console.error('Error processing transcription:', error);
+    throw error;
+  }
 }; 
