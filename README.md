@@ -32,10 +32,10 @@ Smart necklace project combining IoT firmware, mobile app, and cloud services.
    - `Ctrl/Cmd + Shift + P` → "Remote-Containers: Open in Container"
 
 3. Start services:
-   - Frontend: `npm run start` in `frontend/expo-app`
-   - Python Backend: `poetry run python src/main.py` in `backend/python-service`
-   - Node Backend: `npm run dev` in `backend/node-service`
-   - Firmware: `west build` in `firmware/zephyr-app`
+   - Mobile App: `npm run start` in `mobile_app/`
+   - Backend: `poetry run python src/main.py` in `backend/`
+   - Firmware: `west build` in `firmware/`
+   - Documentation: `mkdocs serve` in `docs/`
 
 ## 📁 Project Structure
 
