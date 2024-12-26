@@ -19,6 +19,8 @@ const defaultSettings = {
   smartFormatting: true,
   utteranceThreshold: 0.3,
   autoPunctuation: true,
+  showTabLabels: true,
+  tabBarAnimation: true,
 };
 
 export default function SettingsScreen({ navigation }) {
@@ -156,6 +158,26 @@ export default function SettingsScreen({ navigation }) {
               value={settings.autoPunctuation}
               onValueChange={(value) => 
                 saveSettings({ ...settings, autoPunctuation: value })
+              }
+            />
+          </SettingRow>
+        </SettingSection>
+
+        <SettingSection title="Navigation">
+          <SettingRow label="Show Tab Labels">
+            <Switch
+              value={settings.showTabLabels}
+              onValueChange={(value) => 
+                saveSettings({ ...settings, showTabLabels: value })
+              }
+            />
+          </SettingRow>
+          
+          <SettingRow label="Tab Animation">
+            <Switch
+              value={settings.tabBarAnimation}
+              onValueChange={(value) => 
+                saveSettings({ ...settings, tabBarAnimation: value })
               }
             />
           </SettingRow>
