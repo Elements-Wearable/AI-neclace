@@ -23,7 +23,7 @@ const defaultSettings = {
   tabBarAnimation: true,
 };
 
-export default function SettingsScreen({ navigation }) {
+export default function SettingsScreen() {
   const [settings, setSettings] = React.useState(defaultSettings);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -37,151 +37,156 @@ export default function SettingsScreen({ navigation }) {
       if (savedSettings) {
         setSettings(JSON.parse(savedSettings));
       }
+      setIsLoading(false);
     } catch (error) {
       console.error('Error loading settings:', error);
-    } finally {
-      setIsLoading(false);
+      Alert.alert('Error', 'Failed to load settings');
     }
   };
 
-  const saveSettings = async (newSettings) => {
+  const updateSetting = async (key, value) => {
     try {
+      const newSettings = { ...settings, [key]: value };
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
       setSettings(newSettings);
     } catch (error) {
-      console.error('Error saving settings:', error);
-      Alert.alert('Error', 'Failed to save settings');
+      console.error('Error saving setting:', error);
+      Alert.alert('Error', 'Failed to save setting');
     }
   };
 
-  const SettingSection = ({ title, children }) => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionContent}>
-        {children}
-      </View>
-    </View>
-  );
-
-  const SettingRow = ({ label, children }) => (
-    <View style={styles.settingRow}>
-      <Text style={styles.settingLabel}>{label}</Text>
-      {children}
-    </View>
-  );
+  const resetSettings = async () => {
+    Alert.alert(
+      'Reset Settings',
+      'Are you sure you want to reset all settings to default?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(defaultSettings));
+              setSettings(defaultSettings);
+            } catch (error) {
+              console.error('Error resetting settings:', error);
+              Alert.alert('Error', 'Failed to reset settings');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
-      </View>
-
       <ScrollView style={styles.content}>
-        <SettingSection title="Transcription">
-          <SettingRow label="Language">
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recording</Text>
+          
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Language</Text>
             <TouchableOpacity
-              style={styles.languageSelector}
+              style={styles.selector}
               onPress={() => {
                 Alert.alert(
                   'Select Language',
                   '',
                   SUPPORTED_LANGUAGES.map(lang => ({
                     text: lang.name,
-                    onPress: () => saveSettings({ ...settings, language: lang.code })
+                    onPress: () => updateSetting('language', lang.code)
                   }))
                 );
               }}
             >
-              <Text style={styles.languageText}>
+              <Text style={styles.selectorText}>
                 {SUPPORTED_LANGUAGES.find(l => l.code === settings.language)?.name || 'English'}
               </Text>
             </TouchableOpacity>
-          </SettingRow>
+          </View>
 
-          <SettingRow label="Auto Speaker Detection">
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>High Quality Audio</Text>
+            <Switch
+              value={settings.highQualityAudio}
+              onValueChange={(value) => updateSetting('highQualityAudio', value)}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Transcription</Text>
+          
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Auto Speaker Detection</Text>
             <Switch
               value={settings.autoSpeakerDetection}
-              onValueChange={(value) => 
-                saveSettings({ ...settings, autoSpeakerDetection: value })
-              }
+              onValueChange={(value) => updateSetting('autoSpeakerDetection', value)}
             />
-          </SettingRow>
+          </View>
 
-          <SettingRow label="Maximum Speakers">
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Maximum Speakers</Text>
             <TouchableOpacity
-              style={styles.numberSelector}
+              style={styles.selector}
               onPress={() => {
                 Alert.alert(
                   'Select Maximum Speakers',
                   '',
                   [2,3,4,5,6].map(num => ({
                     text: num.toString(),
-                    onPress: () => saveSettings({ ...settings, maxSpeakers: num })
+                    onPress: () => updateSetting('maxSpeakers', num)
                   }))
                 );
               }}
             >
-              <Text style={styles.numberText}>{settings.maxSpeakers}</Text>
+              <Text style={styles.selectorText}>{settings.maxSpeakers}</Text>
             </TouchableOpacity>
-          </SettingRow>
-        </SettingSection>
+          </View>
 
-        <SettingSection title="Audio">
-          <SettingRow label="High Quality Recording">
-            <Switch
-              value={settings.highQualityAudio}
-              onValueChange={(value) => 
-                saveSettings({ ...settings, highQualityAudio: value })
-              }
-            />
-          </SettingRow>
-        </SettingSection>
-
-        <SettingSection title="Processing">
-          <SettingRow label="Smart Formatting">
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Smart Formatting</Text>
             <Switch
               value={settings.smartFormatting}
-              onValueChange={(value) => 
-                saveSettings({ ...settings, smartFormatting: value })
-              }
+              onValueChange={(value) => updateSetting('smartFormatting', value)}
             />
-          </SettingRow>
+          </View>
 
-          <SettingRow label="Auto Punctuation">
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Auto Punctuation</Text>
             <Switch
               value={settings.autoPunctuation}
-              onValueChange={(value) => 
-                saveSettings({ ...settings, autoPunctuation: value })
-              }
+              onValueChange={(value) => updateSetting('autoPunctuation', value)}
             />
-          </SettingRow>
-        </SettingSection>
+          </View>
+        </View>
 
-        <SettingSection title="Navigation">
-          <SettingRow label="Show Tab Labels">
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Interface</Text>
+          
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Show Tab Labels</Text>
             <Switch
               value={settings.showTabLabels}
-              onValueChange={(value) => 
-                saveSettings({ ...settings, showTabLabels: value })
-              }
+              onValueChange={(value) => updateSetting('showTabLabels', value)}
             />
-          </SettingRow>
-          
-          <SettingRow label="Tab Animation">
+          </View>
+
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Tab Animation</Text>
             <Switch
               value={settings.tabBarAnimation}
-              onValueChange={(value) => 
-                saveSettings({ ...settings, tabBarAnimation: value })
-              }
+              onValueChange={(value) => updateSetting('tabBarAnimation', value)}
             />
-          </SettingRow>
-        </SettingSection>
+          </View>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.resetButton}
+          onPress={resetSettings}
+        >
+          <Text style={styles.resetButtonText}>Reset to Defaults</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -191,18 +196,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
   },
   content: {
     flex: 1,
@@ -218,30 +211,17 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 16,
   },
-  sectionContent: {
-    gap: 12,
-  },
   settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
   settingLabel: {
     fontSize: 16,
     color: '#333',
   },
-  languageSelector: {
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  languageText: {
-    color: '#6200ee',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  numberSelector: {
+  selector: {
     backgroundColor: 'rgba(98, 0, 238, 0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -249,16 +229,21 @@ const styles = StyleSheet.create({
     minWidth: 40,
     alignItems: 'center',
   },
-  numberText: {
+  selectorText: {
     color: '#6200ee',
     fontSize: 14,
     fontWeight: '500',
   },
-  backButton: {
-    marginRight: 16,
+  resetButton: {
+    margin: 20,
+    padding: 12,
+    backgroundColor: '#dc3545',
+    borderRadius: 8,
+    alignItems: 'center',
   },
-  backButtonText: {
-    fontSize: 28,
-    color: '#6200ee',
+  resetButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
   },
 }); 
