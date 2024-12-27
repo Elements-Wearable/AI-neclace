@@ -23,4 +23,26 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'ja', name: 'Japanese' },
   { code: 'ko', name: 'Korean' },
   { code: 'zh', name: 'Chinese' },
-]; 
+];
+
+// Add theme options to constants
+export const THEME_OPTIONS = {
+  LIGHT: 'light',
+  DARK: 'dark',
+  SYSTEM: 'automatic'
+};
+
+// Update defaultSettings
+export const defaultSettings = {
+  language: 'en',
+  autoSpeakerDetection: true,
+  maxSpeakers: 2,
+  highQualityAudio: true,
+  smartFormatting: true,
+  utteranceThreshold: 0.3,
+  autoPunctuation: true,
+  showTabLabels: true,
+  tabBarAnimation: true,
+  theme: THEME_OPTIONS.SYSTEM, // Add default theme setting
+  debugMode: false,
+}; 

@@ -5,13 +5,14 @@ import {
     Platform,
     SafeAreaView,
     ScrollView,
+    Share,
     StyleSheet,
     Switch,
     Text,
     TouchableOpacity,
     View
 } from 'react-native';
-import { SETTINGS_KEY, SUPPORTED_LANGUAGES, TRANSCRIPTIONS_KEY } from '../config/constants';
+import { SETTINGS_KEY, SUPPORTED_LANGUAGES, THEME_OPTIONS, TRANSCRIPTIONS_KEY } from '../config/constants';
 import { SAMPLE_CONVERSATIONS } from '../config/sampleData';
 
 const defaultSettings = {
@@ -24,6 +25,7 @@ const defaultSettings = {
   autoPunctuation: true,
   showTabLabels: true,
   tabBarAnimation: true,
+  theme: THEME_OPTIONS.SYSTEM,
 };
 
 export default function SettingsScreen() {
@@ -222,6 +224,38 @@ export default function SettingsScreen() {
             <Text style={styles.sectionTitle}>Interface</Text>
             
             <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Theme</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={() => {
+                  Alert.alert(
+                    'Select Theme',
+                    '',
+                    [
+                      {
+                        text: 'Light',
+                        onPress: () => updateSetting('theme', THEME_OPTIONS.LIGHT)
+                      },
+                      {
+                        text: 'Dark',
+                        onPress: () => updateSetting('theme', THEME_OPTIONS.DARK)
+                      },
+                      {
+                        text: 'System',
+                        onPress: () => updateSetting('theme', THEME_OPTIONS.SYSTEM)
+                      }
+                    ]
+                  );
+                }}
+              >
+                <Text style={styles.selectorText}>
+                  {settings.theme === THEME_OPTIONS.LIGHT ? 'Light' :
+                   settings.theme === THEME_OPTIONS.DARK ? 'Dark' : 'System'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingRow}>
               <Text style={styles.settingLabel}>Show Tab Labels</Text>
               <Switch
                 value={settings.showTabLabels}
@@ -241,21 +275,108 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Development</Text>
             
-            <TouchableOpacity 
-              style={styles.button}
-              onPress={generateSampleData}
-            >
-              <Text style={styles.buttonText}>
-                Add Sample Data
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Add Sample Data</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={generateSampleData}
+              >
+                <Text style={styles.selectorText}>Generate</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Clear Sample Data</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={() => {
+                  Alert.alert(
+                    'Clear Sample Data',
+                    'Are you sure you want to remove all sample data?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { 
+                        text: 'Clear',
+                        style: 'destructive',
+                        onPress: async () => {
+                          try {
+                            const transcriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
+                            const filtered = transcriptions.filter(t => !t.id.startsWith('sample_'));
+                            await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(filtered));
+                            Alert.alert('Success', 'Sample data cleared successfully');
+                          } catch (error) {
+                            console.error('Error clearing sample data:', error);
+                            Alert.alert('Error', 'Failed to clear sample data');
+                          }
+                        }
+                      }
+                    ]
+                  );
+                }}
+              >
+                <Text style={styles.selectorText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Export All Data</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={async () => {
+                  try {
+                    const transcriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
+                    const summaries = await AsyncStorage.getItem(SUMMARIES_KEY);
+                    const settings = await AsyncStorage.getItem(SETTINGS_KEY);
+                    
+                    const exportData = {
+                      transcriptions,
+                      summaries,
+                      settings: JSON.parse(settings),
+                      exportDate: new Date().toISOString()
+                    };
+
+                    const jsonString = JSON.stringify(exportData, null, 2);
+                    await Share.share({
+                      message: jsonString,
+                      title: 'Voice Notes App Data Export'
+                    });
+                  } catch (error) {
+                    console.error('Error exporting data:', error);
+                    Alert.alert('Error', 'Failed to export data');
+                  }
+                }}
+              >
+                <Text style={styles.selectorText}>Export</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Debug Mode</Text>
+              <Switch
+                value={settings.debugMode}
+                onValueChange={(value) => updateSetting('debugMode', value)}
+              />
+            </View>
+
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>App Version</Text>
+              <View style={styles.selector}>
+                {/* Display app version from app.json dynamically */}
+                <Text style={styles.selectorText}>
+                  {require('../../app.json').expo.version}
+                </Text>
+              </View>
+            </View>
           </View>
 
           <TouchableOpacity 
-            style={styles.resetButton}
+            style={[styles.settingRow, styles.resetButtonContainer]}
             onPress={resetSettings}
           >
-            <Text style={styles.resetButtonText}>Reset to Defaults</Text>
+            <Text style={styles.settingLabel}>Reset All Settings</Text>
+            <View style={[styles.selector, styles.resetSelector]}>
+              <Text style={[styles.selectorText, styles.resetText]}>Reset</Text>
+            </View>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -310,34 +431,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  resetButton: {
-    margin: 20,
-    padding: 12,
-    backgroundColor: '#dc3545',
-    borderRadius: 8,
-    alignItems: 'center',
+  resetButtonContainer: {
+    marginTop: 20,
+    marginHorizontal: 20,
+    marginBottom: 30,
   },
-  resetButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
+  resetSelector: {
+    backgroundColor: 'rgba(220, 53, 69, 0.1)', // Light red background
   },
-  button: {
-    backgroundColor: '#6200ee',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
+  resetText: {
+    color: '#dc3545', // Red text
   },
-  buttonDisabled: {
-    backgroundColor: '#e0e0e0',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  buttonTextDisabled: {
-    color: '#999',
-  },
+  button: undefined,
+  buttonText: undefined,
+  resetButton: undefined,
+  resetButtonText: undefined,
 }); 
