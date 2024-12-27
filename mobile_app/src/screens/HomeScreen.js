@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import React from 'react';
 import {
+  Alert,
   AppState,
   Modal,
   Platform,
@@ -10,8 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  Alert
+  View
 } from 'react-native';
 import {
   CHUNK_DURATION,
@@ -20,6 +20,7 @@ import {
   SUPPORTED_LANGUAGES
 } from '../config/constants';
 import * as storage from '../services/storage';
+import logger from '../utils/logger';
 
 // Styles
 const styles = StyleSheet.create({
@@ -666,6 +667,7 @@ export default function HomeScreen({ navigation }) {
 
   const startRecording = async () => {
     try {
+      logger.debug('Starting recording...');
       console.log('Starting recording setup...');
       await Audio.requestPermissionsAsync();
       
@@ -680,7 +682,7 @@ export default function HomeScreen({ navigation }) {
       console.log('Recording setup complete');
 
       await newRecording.startAsync();
-      console.log('Recording started successfully');
+      logger.info('Recording started successfully');
       setRecording(newRecording);
       setIsRecording(true);
       
@@ -716,7 +718,7 @@ export default function HomeScreen({ navigation }) {
       }, CHUNK_DURATION);
 
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      logger.error('Error starting recording:', error);
       Alert.alert('Error', 'Failed to start recording. Please try again.');
       await cleanupRecording();
     }
@@ -724,6 +726,7 @@ export default function HomeScreen({ navigation }) {
 
   const stopRecording = async () => {
     try {
+      logger.debug('Stopping recording...');
       if (!recording) return;
       
       clearInterval(recordingInterval.current);
@@ -755,8 +758,9 @@ export default function HomeScreen({ navigation }) {
       await verifyStoredTranscriptions(currentSessionId);
       
       setCurrentSessionId(null);
+      logger.info('Recording stopped successfully');
     } catch (error) {
-      console.error('Failed to stop recording:', error);
+      logger.error('Error stopping recording:', error);
       setRecording(null);
       setIsRecording(false);
       setIsBackgroundRecording(false);
@@ -838,6 +842,7 @@ export default function HomeScreen({ navigation }) {
   // Update the processChunkInRealTime function
   const processChunkInRealTime = async (uri) => {
     try {
+      logger.debug('Processing transcription...');
       const settings = await getSettings();
       console.log('🔧 Processing with settings:', {
         language: settings.language,
@@ -930,10 +935,11 @@ export default function HomeScreen({ navigation }) {
       };
 
       await storeTranscriptionInBackground(transcriptionData);
+      logger.info('Transcription processed successfully');
       return transcriptionData;
 
     } catch (error) {
-      console.error('Error processing chunk:', error);
+      logger.error('Error processing transcription:', error);
       throw error;
     }
   };

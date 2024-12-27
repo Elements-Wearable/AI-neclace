@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Alert,
+    Modal,
     Platform,
     SafeAreaView,
     ScrollView,
@@ -15,6 +16,7 @@ import {
 } from 'react-native';
 import { SETTINGS_KEY, SUPPORTED_LANGUAGES, THEME_OPTIONS, TRANSCRIPTIONS_KEY } from '../config/constants';
 import { SAMPLE_CONVERSATIONS } from '../config/sampleData';
+import logger from '../utils/logger';
 
 const defaultSettings = {
   language: 'en',
@@ -59,6 +61,9 @@ const getAllAsyncStorageData = async () => {
 export default function SettingsScreen() {
   const [settings, setSettings] = React.useState(defaultSettings);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [logFiles, setLogFiles] = useState([]);
+  const [selectedLogs, setSelectedLogs] = useState([]);
+  const [showLogFiles, setShowLogFiles] = useState(false);
 
   React.useEffect(() => {
     loadSettings();
@@ -66,13 +71,18 @@ export default function SettingsScreen() {
 
   const loadSettings = async () => {
     try {
+      logger.debug('Loading settings...');
       const savedSettings = await AsyncStorage.getItem(SETTINGS_KEY);
       if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
+        const parsed = JSON.parse(savedSettings);
+        setSettings(parsed);
+        // Set global debug mode on app start
+        global.debugMode = parsed.debugMode;
+        logger.debug('Settings loaded:', parsed);
       }
       setIsLoading(false);
     } catch (error) {
-      console.error('Error loading settings:', error);
+      logger.error('Error loading settings:', error);
       Alert.alert('Error', 'Failed to load settings');
     }
   };
@@ -83,16 +93,23 @@ export default function SettingsScreen() {
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
       setSettings(newSettings);
       
+      // Set global debug mode when it changes
+      if (key === 'debugMode') {
+        global.debugMode = value;
+        logger.debug('Debug mode changed:', value);
+      }
+      
       // Force an immediate update
       if (key === 'showTabLabels') {
+        logger.debug('Tab labels visibility changed:', value);
         // Add a small delay to ensure the AsyncStorage write is complete
         setTimeout(async () => {
           const verify = await AsyncStorage.getItem(SETTINGS_KEY);
-          console.log('Updated settings:', verify);
+          logger.debug('Updated settings verified:', verify);
         }, 100);
       }
     } catch (error) {
-      console.error('Error saving setting:', error);
+      logger.error('Error saving setting:', error);
       Alert.alert('Error', 'Failed to save setting');
     }
   };
@@ -122,9 +139,12 @@ export default function SettingsScreen() {
 
   const generateSampleData = async () => {
     try {
+      logger.debug('Generating sample data...');
       // Get existing transcriptions
       const existingTranscriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
       const parsedExisting = existingTranscriptions ? JSON.parse(existingTranscriptions) : [];
+      
+      logger.debug('Existing transcriptions:', parsedExisting.length);
       
       // Generate random transcriptions over yesterday and today
       const newTranscriptions = [];
@@ -163,13 +183,20 @@ export default function SettingsScreen() {
       // Save to storage
       await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(allTranscriptions));
       
-      Alert.alert(
-        'Success', 
-        `Added ${newTranscriptions.length} sample transcriptions`
-      );
+      logger.info(`Added ${newTranscriptions.length} sample transcriptions`);
     } catch (error) {
-      console.error('Error generating sample data:', error);
+      logger.error('Error generating sample data:', error);
       Alert.alert('Error', 'Failed to generate sample data');
+    }
+  };
+
+  const loadLogFiles = async () => {
+    try {
+      const files = await logger.getLogFiles();
+      setLogFiles(files);
+    } catch (error) {
+      logger.error('Failed to load log files:', error);
+      Alert.alert('Error', 'Failed to load log files');
     }
   };
 
@@ -483,6 +510,108 @@ export default function SettingsScreen() {
               />
             </View>
 
+            {settings.debugMode && (
+              <>
+                <View style={styles.settingRow}>
+                  <Text style={styles.settingLabel}>Debug Logs</Text>
+                  <TouchableOpacity
+                    style={styles.selector}
+                    onPress={async () => {
+                      try {
+                        await loadLogFiles();
+                        setShowLogFiles(true);
+                      } catch (error) {
+                        logger.error('Failed to load log files:', error);
+                        Alert.alert(
+                          'Error',
+                          'Failed to load log files: ' + (error.message || 'Unknown error')
+                        );
+                      }
+                    }}
+                  >
+                    <Text style={styles.selectorText}>View Logs</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Debug Logs Modal */}
+                <Modal
+                  visible={showLogFiles}
+                  animationType="slide"
+                  transparent={true}
+                  onRequestClose={() => setShowLogFiles(false)}
+                >
+                  <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                      <Text style={styles.modalTitle}>Debug Logs</Text>
+                      
+                      <ScrollView style={styles.logFilesList}>
+                        {logFiles.map((file) => (
+                          <TouchableOpacity
+                            key={file.name}
+                            style={[
+                              styles.logFileItem,
+                              selectedLogs.includes(file) && styles.logFileItemSelected
+                            ]}
+                            onPress={() => {
+                              setSelectedLogs(prev => 
+                                prev.includes(file)
+                                  ? prev.filter(f => f !== file)
+                                  : [...prev, file]
+                              );
+                            }}
+                          >
+                            <View style={styles.logFileInfo}>
+                              <Text style={styles.logFileDate}>
+                                {new Date(file.date).toLocaleDateString()}
+                              </Text>
+                              <Text style={styles.logFileSize}>
+                                {(file.size / 1024).toFixed(1)} KB
+                              </Text>
+                            </View>
+                            <TouchableOpacity
+                              style={styles.logFileShareButton}
+                              onPress={() => logger.shareLogFile(new Date(file.date))}
+                            >
+                              <Text style={styles.logFileShareText}>Share</Text>
+                            </TouchableOpacity>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+
+                      <View style={styles.modalButtons}>
+                        {selectedLogs.length > 0 && (
+                          <TouchableOpacity
+                            style={[styles.modalButton, styles.exportButton]}
+                            onPress={async () => {
+                              try {
+                                await logger.shareMultipleLogFiles(selectedLogs);
+                                setSelectedLogs([]);
+                              } catch (error) {
+                                Alert.alert('Error', 'Failed to export logs');
+                              }
+                            }}
+                          >
+                            <Text style={styles.modalButtonText}>
+                              Export Selected ({selectedLogs.length})
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          style={styles.modalButton}
+                          onPress={() => {
+                            setShowLogFiles(false);
+                            setSelectedLogs([]);
+                          }}
+                        >
+                          <Text style={styles.modalButtonText}>Close</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                </Modal>
+              </>
+            )}
+
             <View style={styles.settingRow}>
               <Text style={styles.settingLabel}>App Version</Text>
               <View style={styles.selector}>
@@ -577,4 +706,80 @@ const styles = StyleSheet.create({
   buttonText: undefined,
   resetButton: undefined,
   resetButtonText: undefined,
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  logFilesList: {
+    maxHeight: '70%',
+  },
+  logFileItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  logFileItemSelected: {
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+  },
+  logFileInfo: {
+    flex: 1,
+  },
+  logFileDate: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  logFileSize: {
+    fontSize: 14,
+    color: '#666',
+  },
+  logFileShareButton: {
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 12,
+  },
+  logFileShareText: {
+    color: '#6200ee',
+    fontSize: 14,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+  },
+  modalButton: {
+    backgroundColor: '#6200ee',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  exportButton: {
+    backgroundColor: '#28a745',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
 }); 

@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import logger from '../../utils/logger';
 
 // Import screens
-import HomeScreen from '../HomeScreen';
-import SummaryScreen from '../SummaryScreen';
 import HistoryScreen from '../HistoryScreen';
+import HomeScreen from '../HomeScreen';
 import SettingsScreen from '../SettingsScreen';
+import SummaryScreen from '../SummaryScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -42,6 +43,8 @@ const SCREEN_CONFIG = [
 
 // TabNavigator component with settings prop
 const TabNavigator = ({ settings }) => {
+  logger.debug('Rendering TabNavigator with settings:', settings);
+  
   // Screen options configuration
   const screenOptions = {
     tabBarActiveTintColor: '#6200ee',
@@ -69,15 +72,18 @@ const TabNavigator = ({ settings }) => {
   };
 
   // Render tab icon based on screen configuration
-  const renderTabIcon = (focused, color, iconName, iconOutline, isLarge) => (
-    <View style={isLarge ? styles.iconContainer : null}>
-      <Ionicons
-        name={focused ? iconName : iconOutline}
-        size={isLarge ? 32 : 24}
-        color={focused && isLarge ? '#6200ee' : color}
-      />
-    </View>
-  );
+  const renderTabIcon = (focused, color, iconName, iconOutline, isLarge) => {
+    logger.debug('Rendering tab icon:', { focused, iconName, isLarge });
+    return (
+      <View style={isLarge ? styles.iconContainer : null}>
+        <Ionicons
+          name={focused ? iconName : iconOutline}
+          size={isLarge ? 32 : 24}
+          color={focused && isLarge ? '#6200ee' : color}
+        />
+      </View>
+    );
+  };
 
   return (
     <Tab.Navigator screenOptions={screenOptions}>
