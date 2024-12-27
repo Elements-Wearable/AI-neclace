@@ -7,6 +7,7 @@ class Logger {
     this.currentDate = new Date().toISOString().split('T')[0];
     this.logFilePath = null;
     this.initialized = false;
+    this.currentSessionId = null;
   }
 
   async init() {
@@ -23,8 +24,27 @@ class Logger {
       console.error('Failed to create logs directory:', error);
     }
     
-    this.logFilePath = `${logsDir}debug_${this.currentDate}.log`;
     this.initialized = true;
+  }
+
+  async createNewLogFile() {
+    const timestamp = new Date().toISOString();
+    this.currentSessionId = Math.random().toString(36).substring(7);
+    this.currentDate = timestamp.split('T')[0];
+    this.logFilePath = `${FileSystem.documentDirectory}logs/debug_${this.currentDate}_${this.currentSessionId}.log`;
+    
+    await this.init();
+    await this.writeToFile(`[${timestamp}] DEBUG: Debug session started`);
+    return this.logFilePath;
+  }
+
+  async closeCurrentLogFile() {
+    if (this.logFilePath && this.currentSessionId) {
+      const timestamp = new Date().toISOString();
+      await this.writeToFile(`[${timestamp}] DEBUG: Debug session ended`);
+      this.currentSessionId = null;
+      this.logFilePath = null;
+    }
   }
 
   async writeToFile(message) {
@@ -33,14 +53,7 @@ class Logger {
     await this.init();
     
     try {
-      // Check if we need to create a new file for a new day
-      const today = new Date().toISOString().split('T')[0];
-      if (today !== this.currentDate) {
-        this.currentDate = today;
-        this.logFilePath = `${FileSystem.documentDirectory}logs/debug_${this.currentDate}.log`;
-      }
-
-      // Append to file
+      // Append to current file
       await FileSystem.writeAsStringAsync(
         this.logFilePath,
         message + '\n',
@@ -130,11 +143,27 @@ class Logger {
       for (const file of files) {
         if (file.startsWith('debug_') && file.endsWith('.log')) {
           const fileInfo = await FileSystem.getInfoAsync(`${logsDir}${file}`);
+          const fileDate = file.replace('debug_', '').replace('.log', '');
+          
+          // Read first and last lines to get time range
+          const content = await FileSystem.readAsStringAsync(fileInfo.uri);
+          const lines = content.split('\n').filter(line => line.trim());
+          const firstLine = lines[0] || '';
+          const lastLine = lines[lines.length - 1] || '';
+          
+          // Extract timestamps
+          const startTime = firstLine.match(/\[(.*?)\]/)?.[1] || fileDate;
+          const endTime = lastLine.match(/\[(.*?)\]/)?.[1] || fileDate;
+          
           logFiles.push({
             name: file,
-            date: file.replace('debug_', '').replace('.log', ''),
+            date: fileDate,
             size: fileInfo.size,
-            uri: fileInfo.uri
+            uri: fileInfo.uri,
+            lines: lines.length,
+            startTime: new Date(startTime),
+            endTime: new Date(endTime),
+            preview: lines.slice(0, 3).join('\n') // First 3 lines as preview
           });
         }
       }
