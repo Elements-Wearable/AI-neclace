@@ -1,10 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import React, { useState } from 'react';
 import {
     Alert,
-    Modal,
     Platform,
     SafeAreaView,
     ScrollView,
@@ -17,6 +14,7 @@ import {
 import { SETTINGS_KEY, SUPPORTED_LANGUAGES, THEME_OPTIONS, TRANSCRIPTIONS_KEY } from '../config/constants';
 import { SAMPLE_CONVERSATIONS } from '../config/sampleData';
 import logger from '../utils/logger';
+import DevelopmentSettings from './settings/DevelopmentSettings';
 
 const defaultSettings = {
   language: 'en',
@@ -336,292 +334,76 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Development</Text>
-            
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Add Sample Data</Text>
-              <TouchableOpacity
-                style={styles.selector}
-                onPress={generateSampleData}
-              >
-                <Text style={styles.selectorText}>Generate</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Clear Sample Data</Text>
-              <TouchableOpacity
-                style={styles.selector}
-                onPress={() => {
-                  Alert.alert(
-                    'Clear Sample Data',
-                    'Are you sure you want to remove all sample data? This will only remove generated sample data, not your actual recordings.',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { 
-                        text: 'Clear',
-                        style: 'destructive',
-                        onPress: async () => {
-                          try {
-                            // Get and parse transcriptions
-                            const rawTranscriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
-                            if (!rawTranscriptions) {
-                              Alert.alert('Info', 'No data to clear');
-                              return;
-                            }
-
-                            const transcriptions = JSON.parse(rawTranscriptions);
-                            
-                            // Count sample data before filtering
-                            const sampleCount = transcriptions.filter(t => 
-                              t.id?.startsWith('sample_') || 
-                              t.sessionId?.includes('sample') ||
-                              t.metadata?.isSampleData
-                            ).length;
-
-                            if (sampleCount === 0) {
-                              Alert.alert('Info', 'No sample data found to clear');
-                              return;
-                            }
-
-                            // Filter out sample data
-                            const filtered = transcriptions.filter(t => 
-                              // Keep items that don't match any sample data criteria
-                              !t.id?.startsWith('sample_') && 
-                              !t.sessionId?.includes('sample') &&
-                              !t.metadata?.isSampleData
-                            );
-
-                            // Save filtered data
-                            await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(filtered));
-                            
-                            // Show success message with count
-                            Alert.alert(
-                              'Success', 
-                              `Cleared ${sampleCount} sample transcription${sampleCount !== 1 ? 's' : ''}`
-                            );
-
-                            // Optionally refresh settings/UI if needed
-                            loadSettings();
-
-                          } catch (error) {
-                            console.error('Error clearing sample data:', error);
-                            Alert.alert(
-                              'Error', 
-                              'Failed to clear sample data: ' + (error.message || 'Unknown error')
-                            );
-                          }
-                        }
-                      }
-                    ]
-                  );
-                }}
-              >
-                <Text style={styles.selectorText}>Clear</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Export Database</Text>
-              <TouchableOpacity
-                style={styles.selector}
-                onPress={async () => {
-                  try {
-                    // Show loading state
-                    Alert.alert('Preparing Export', 'Please wait while we prepare your data...');
-
-                    // Create a temporary directory for export
-                    const tempDir = `${FileSystem.cacheDirectory}export/`;
-                    await FileSystem.makeDirectoryAsync(tempDir, { intermediates: true });
-
-                    // Get all data dynamically
-                    const storageData = await getAllAsyncStorageData();
-
-                    const exportData = {
-                      data: storageData,
-                      metadata: {
-                        exportDate: new Date().toISOString(),
-                        appVersion: require('../../app.json').expo.version,
-                        platform: Platform.OS,
-                        platformVersion: Platform.Version,
-                        storageKeys: Object.keys(storageData),
-                        dataTypes: Object.entries(storageData).reduce((acc, [key, value]) => {
-                          acc[key] = {
-                            type: typeof value,
-                            isArray: Array.isArray(value),
-                            itemCount: Array.isArray(value) ? value.length : null,
-                            size: JSON.stringify(value).length
-                          };
-                          return acc;
-                        }, {})
-                      }
-                    };
-
-                    // Save JSON data with formatted output
-                    const jsonPath = `${tempDir}voicenotes_backup_${new Date().toISOString().split('T')[0]}.json`;
-                    await FileSystem.writeAsStringAsync(
-                      jsonPath,
-                      JSON.stringify(exportData, null, 2)
-                    );
-
-                    // Check if sharing is available
-                    const isSharingAvailable = await Sharing.isAvailableAsync();
-                    
-                    if (isSharingAvailable) {
-                      // Share the JSON file directly
-                      await Sharing.shareAsync(jsonPath, {
-                        mimeType: 'application/json',
-                        dialogTitle: 'Export Voice Notes Data',
-                        UTI: 'public.json'
-                      });
-
-                      // Show export summary
-                      Alert.alert(
-                        'Export Complete',
-                        `Successfully exported ${Object.keys(storageData).length} data items\n` +
-                        `Total size: ${(JSON.stringify(exportData).length / 1024).toFixed(2)} KB`
-                      );
-                    } else {
-                      Alert.alert('Error', 'Sharing is not available on this device');
-                    }
-
-                    // Cleanup temporary files
-                    await FileSystem.deleteAsync(tempDir, { idempotent: true });
-
-                  } catch (error) {
-                    console.error('Error exporting data:', error);
-                    Alert.alert(
-                      'Export Error',
-                      'Failed to export data: ' + (error.message || 'Unknown error')
-                    );
-                  }
-                }}
-              >
-                <Text style={styles.selectorText}>Export</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Debug Mode</Text>
-              <Switch
-                value={settings.debugMode}
-                onValueChange={(value) => updateSetting('debugMode', value)}
-              />
-            </View>
-
-            {settings.debugMode && (
-              <>
-                <View style={styles.settingRow}>
-                  <Text style={styles.settingLabel}>Debug Logs</Text>
-                  <TouchableOpacity
-                    style={styles.selector}
-                    onPress={async () => {
+          <DevelopmentSettings 
+            settings={settings}
+            generateSampleData={generateSampleData}
+            clearSampleData={() => {
+              Alert.alert(
+                'Clear Sample Data',
+                'Are you sure you want to remove all sample data? This will only remove generated sample data, not your actual recordings.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { 
+                    text: 'Clear',
+                    style: 'destructive',
+                    onPress: async () => {
                       try {
-                        await loadLogFiles();
-                        setShowLogFiles(true);
-                      } catch (error) {
-                        logger.error('Failed to load log files:', error);
+                        // Get and parse transcriptions
+                        const rawTranscriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
+                        if (!rawTranscriptions) {
+                          Alert.alert('Info', 'No data to clear');
+                          return;
+                        }
+
+                        const transcriptions = JSON.parse(rawTranscriptions);
+                        
+                        // Count sample data before filtering
+                        const sampleCount = transcriptions.filter(t => 
+                          t.id?.startsWith('sample_') || 
+                          t.sessionId?.includes('sample') ||
+                          t.metadata?.isSampleData
+                        ).length;
+
+                        if (sampleCount === 0) {
+                          Alert.alert('Info', 'No sample data found to clear');
+                          return;
+                        }
+
+                        // Filter out sample data
+                        const filtered = transcriptions.filter(t => 
+                          // Keep items that don't match any sample data criteria
+                          !t.id?.startsWith('sample_') && 
+                          !t.sessionId?.includes('sample') &&
+                          !t.metadata?.isSampleData
+                        );
+
+                        // Save filtered data
+                        await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(filtered));
+                        
+                        // Show success message with count
                         Alert.alert(
-                          'Error',
-                          'Failed to load log files: ' + (error.message || 'Unknown error')
+                          'Success', 
+                          `Cleared ${sampleCount} sample transcription${sampleCount !== 1 ? 's' : ''}`
+                        );
+
+                        // Optionally refresh settings/UI if needed
+                        loadSettings();
+
+                      } catch (error) {
+                        console.error('Error clearing sample data:', error);
+                        Alert.alert(
+                          'Error', 
+                          'Failed to clear sample data: ' + (error.message || 'Unknown error')
                         );
                       }
-                    }}
-                  >
-                    <Text style={styles.selectorText}>View Logs</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Debug Logs Modal */}
-                <Modal
-                  visible={showLogFiles}
-                  animationType="slide"
-                  transparent={true}
-                  onRequestClose={() => setShowLogFiles(false)}
-                >
-                  <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                      <Text style={styles.modalTitle}>Debug Logs</Text>
-                      
-                      <ScrollView style={styles.logFilesList}>
-                        {logFiles.map((file) => (
-                          <TouchableOpacity
-                            key={file.name}
-                            style={[
-                              styles.logFileItem,
-                              selectedLogs.includes(file) && styles.logFileItemSelected
-                            ]}
-                            onPress={() => {
-                              setSelectedLogs(prev => 
-                                prev.includes(file)
-                                  ? prev.filter(f => f !== file)
-                                  : [...prev, file]
-                              );
-                            }}
-                          >
-                            <View style={styles.logFileInfo}>
-                              <Text style={styles.logFileDate}>
-                                {new Date(file.date).toLocaleDateString()}
-                              </Text>
-                              <Text style={styles.logFileSize}>
-                                {(file.size / 1024).toFixed(1)} KB
-                              </Text>
-                            </View>
-                            <TouchableOpacity
-                              style={styles.logFileShareButton}
-                              onPress={() => logger.shareLogFile(new Date(file.date))}
-                            >
-                              <Text style={styles.logFileShareText}>Share</Text>
-                            </TouchableOpacity>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-
-                      <View style={styles.modalButtons}>
-                        {selectedLogs.length > 0 && (
-                          <TouchableOpacity
-                            style={[styles.modalButton, styles.exportButton]}
-                            onPress={async () => {
-                              try {
-                                await logger.shareMultipleLogFiles(selectedLogs);
-                                setSelectedLogs([]);
-                              } catch (error) {
-                                Alert.alert('Error', 'Failed to export logs');
-                              }
-                            }}
-                          >
-                            <Text style={styles.modalButtonText}>
-                              Export Selected ({selectedLogs.length})
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          style={styles.modalButton}
-                          onPress={() => {
-                            setShowLogFiles(false);
-                            setSelectedLogs([]);
-                          }}
-                        >
-                          <Text style={styles.modalButtonText}>Close</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                </Modal>
-              </>
-            )}
-
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>App Version</Text>
-              <View style={styles.selector}>
-                {/* Display app version from app.json dynamically */}
-                <Text style={styles.selectorText}>
-                  {require('../../app.json').expo.version}
-                </Text>
-              </View>
-            </View>
-          </View>
+                    }
+                  }
+                ]
+              );
+            }}
+            getAllAsyncStorageData={getAllAsyncStorageData}
+            updateSetting={updateSetting}
+          />
 
           <TouchableOpacity 
             style={[styles.settingRow, styles.resetButtonContainer]}
