@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, StyleSheet, useColorScheme } from 'react-native';
 import { SETTINGS_KEY, THEME_OPTIONS } from './src/config/constants';
+import logger from './src/utils/logger';
 
 import TabNavigator from './src/screens/navigation/TabNavigator';
 
@@ -24,18 +25,25 @@ export default function App() {
   useEffect(() => {
     loadSettings();
     const interval = setInterval(loadSettings, 300);
-    return () => clearInterval(interval);
+    logger.debug('App initialized');
+    return () => {
+      logger.debug('Cleaning up app intervals');
+      clearInterval(interval);
+    }
   }, []);
 
   const loadSettings = async () => {
     try {
+      logger.debug('Loading app settings');
       const savedSettings = await AsyncStorage.getItem(SETTINGS_KEY);
       if (savedSettings) {
         const parsedSettings = JSON.parse(savedSettings);
         setSettings(parsedSettings);
+        global.debugMode = parsedSettings.debugMode;
+        logger.debug('App settings loaded:', parsedSettings);
       }
     } catch (error) {
-      console.error('Error loading settings:', error);
+      logger.error('Error loading app settings:', error);
     }
   };
 

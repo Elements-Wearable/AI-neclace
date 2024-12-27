@@ -11,6 +11,7 @@ import {
 import { CalendarList } from 'react-native-calendars';
 import ClearHistoryModal from '../components/ClearHistoryModal';
 import * as storage from '../services/storage';
+import logger from '../utils/logger';
 
 export default function HistoryScreen({ navigation }) {
   const [history, setHistory] = React.useState([]);
@@ -49,16 +50,16 @@ export default function HistoryScreen({ navigation }) {
   const loadHistory = async () => {
     try {
       setIsLoading(true);
-      console.log('📚 Loading transcription history...');
+      logger.debug('Loading transcription history...');
       
       const transcriptions = await storage.getTranscriptions();
-      console.log('📊 Found transcriptions:', transcriptions?.length || 0);
+      logger.debug('Found transcriptions:', transcriptions?.length || 0);
       
       if (transcriptions && transcriptions.length > 0) {
-        console.log('📝 Sample transcription:', JSON.stringify(transcriptions[0], null, 2));
+        logger.debug('Sample transcription:', JSON.stringify(transcriptions[0], null, 2));
         
         const grouped = groupByDate(transcriptions);
-        console.log('📅 Grouped by date:', Object.keys(grouped).length, 'dates');
+        logger.debug('Grouped by date:', Object.keys(grouped).length, 'dates');
         
         setHistory(grouped);
         updateMarkedDates(transcriptions);
@@ -67,12 +68,8 @@ export default function HistoryScreen({ navigation }) {
         updateMarkedDates([]);
       }
     } catch (error) {
-      console.error('❌ Error loading history:', error);
-      // Show error to user
-      Alert.alert(
-        'Error Loading History',
-        'Unable to load conversation history. Please try again.'
-      );
+      logger.error('Error loading history:', error);
+      Alert.alert('Error', 'Unable to load conversation history');
     } finally {
       setIsLoading(false);
     }
@@ -105,33 +102,15 @@ export default function HistoryScreen({ navigation }) {
   };
 
   const clearHistory = async () => {
-    Alert.alert(
-      'Clear History',
-      'Are you sure you want to delete all conversation history?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setIsLoading(true);
-              await storage.clearAllTranscriptions();
-              console.log('🗑️ History cleared');
-              setHistory([]);
-            } catch (error) {
-              console.error('❌ Error clearing history:', error);
-              Alert.alert('Error', 'Failed to clear history');
-            } finally {
-              setIsLoading(false);
-            }
-          }
-        }
-      ]
-    );
+    try {
+      logger.debug('Clearing all history...');
+      await storage.clearAllTranscriptions();
+      logger.info('History cleared successfully');
+      setHistory([]);
+    } catch (error) {
+      logger.error('Error clearing history:', error);
+      Alert.alert('Error', 'Failed to clear history');
+    }
   };
 
   const handleClearRange = async (range) => {

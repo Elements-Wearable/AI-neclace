@@ -14,6 +14,7 @@ import { Calendar } from 'react-native-calendars';
 import ClearHistoryModal from '../components/ClearHistoryModal';
 import { generateSummary } from '../services/ai';
 import * as storage from '../services/storage';
+import logger from '../utils/logger';
 
 export default function SummaryScreen({ navigation }) {
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -40,18 +41,21 @@ export default function SummaryScreen({ navigation }) {
   const loadData = async () => {
     try {
       setIsLoading(true);
+      logger.debug('Loading summary data...');
       
       // Load transcriptions to mark dates
       const transcriptions = await storage.getTranscriptions();
+      logger.debug('Found transcriptions for summary:', transcriptions?.length);
       updateMarkedDates(transcriptions);
       
       // Load summaries
       const summaries = await storage.getSummaries();
+      logger.debug('Found summaries:', summaries?.length);
       const currentSummary = summaries.find(s => s.date === selectedDate);
       setSummaryText(currentSummary?.text || '');
       
     } catch (error) {
-      console.error('Error loading data:', error);
+      logger.error('Error loading summary data:', error);
       Alert.alert('Error', 'Failed to load data');
     } finally {
       setIsLoading(false);
@@ -136,23 +140,25 @@ export default function SummaryScreen({ navigation }) {
   const handleGenerateSummary = async (range) => {
     try {
       setIsGenerating(true);
+      logger.debug('Generating summary for range:', range);
       
-      // Get transcriptions for the selected date range
       const transcriptions = await storage.getTranscriptions();
-      const filteredTranscriptions = transcriptions.filter(t => {
+      const filtered = transcriptions.filter(t => {
         const date = new Date(t.timestamp);
         return date >= range.start && date <= range.end;
       });
 
-      if (filteredTranscriptions.length === 0) {
+      logger.debug('Found transcriptions in range:', filtered.length);
+
+      if (filtered.length === 0) {
+        logger.info('No transcriptions found in selected range');
         Alert.alert('No Data', 'No transcriptions found for the selected date range');
         return;
       }
 
-      // Generate summary using OpenAI
-      const summary = await generateSummary(filteredTranscriptions);
+      const summary = await generateSummary(filtered);
+      logger.debug('Summary generated successfully');
 
-      // Save the summary
       await storage.saveSummary({
         date: range.start.toISOString().split('T')[0],
         text: summary,
@@ -163,12 +169,12 @@ export default function SummaryScreen({ navigation }) {
         updatedAt: new Date().toISOString()
       });
 
-      // Reload data
+      logger.info('Summary saved successfully');
       loadData();
       setShowDatePicker(false);
-      Alert.alert('Success', 'Summary generated successfully');
+
     } catch (error) {
-      console.error('Error generating summary:', error);
+      logger.error('Error generating summary:', error);
       Alert.alert('Error', 'Failed to generate summary');
     } finally {
       setIsGenerating(false);
