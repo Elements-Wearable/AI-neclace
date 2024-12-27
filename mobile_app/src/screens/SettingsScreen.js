@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import React from 'react';
 import {
     Alert,
     Platform,
     SafeAreaView,
     ScrollView,
-    Share,
     StyleSheet,
     Switch,
     Text,
@@ -26,6 +27,33 @@ const defaultSettings = {
   showTabLabels: true,
   tabBarAnimation: true,
   theme: THEME_OPTIONS.SYSTEM,
+};
+
+const getAllAsyncStorageData = async () => {
+  try {
+    // Get all keys
+    const keys = await AsyncStorage.getAllKeys();
+    
+    // Get all values for the keys
+    const result = await AsyncStorage.multiGet(keys);
+    
+    // Convert to object with proper error handling
+    const data = {};
+    result.forEach(([key, value]) => {
+      try {
+        // Try to parse JSON values
+        data[key] = value ? JSON.parse(value) : null;
+      } catch (e) {
+        // If parsing fails, store as raw value
+        data[key] = value;
+      }
+    });
+    
+    return data;
+  } catch (error) {
+    console.error('Error getting all AsyncStorage data:', error);
+    throw error;
+  }
 };
 
 export default function SettingsScreen() {
@@ -115,11 +143,17 @@ export default function SettingsScreen() {
         const timestamp = new Date(baseDate);
         timestamp.setHours(randomHours, randomMinutes, 0, 0);
         
+        // Create sample transcription with proper marking
         newTranscriptions.push({
           id: `sample_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          sessionId: `session_${conversation.title.toLowerCase().replace(/\s+/g, '_')}_${Math.random().toString(36).substr(2, 4)}`,
+          sessionId: `sample_session_${conversation.title.toLowerCase().replace(/\s+/g, '_')}`,
           timestamp: timestamp.toISOString(),
-          utterances: conversation.utterances
+          utterances: conversation.utterances,
+          metadata: {
+            isSampleData: true,
+            sampleType: conversation.title,
+            generatedAt: new Date().toISOString()
+          }
         });
       });
       
@@ -129,7 +163,10 @@ export default function SettingsScreen() {
       // Save to storage
       await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(allTranscriptions));
       
-      Alert.alert('Success', 'Sample transcriptions have been added!');
+      Alert.alert(
+        'Success', 
+        `Added ${newTranscriptions.length} sample transcriptions`
+      );
     } catch (error) {
       console.error('Error generating sample data:', error);
       Alert.alert('Error', 'Failed to generate sample data');
@@ -292,7 +329,7 @@ export default function SettingsScreen() {
                 onPress={() => {
                   Alert.alert(
                     'Clear Sample Data',
-                    'Are you sure you want to remove all sample data?',
+                    'Are you sure you want to remove all sample data? This will only remove generated sample data, not your actual recordings.',
                     [
                       { text: 'Cancel', style: 'cancel' },
                       { 
@@ -300,13 +337,53 @@ export default function SettingsScreen() {
                         style: 'destructive',
                         onPress: async () => {
                           try {
-                            const transcriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
-                            const filtered = transcriptions.filter(t => !t.id.startsWith('sample_'));
+                            // Get and parse transcriptions
+                            const rawTranscriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
+                            if (!rawTranscriptions) {
+                              Alert.alert('Info', 'No data to clear');
+                              return;
+                            }
+
+                            const transcriptions = JSON.parse(rawTranscriptions);
+                            
+                            // Count sample data before filtering
+                            const sampleCount = transcriptions.filter(t => 
+                              t.id?.startsWith('sample_') || 
+                              t.sessionId?.includes('sample') ||
+                              t.metadata?.isSampleData
+                            ).length;
+
+                            if (sampleCount === 0) {
+                              Alert.alert('Info', 'No sample data found to clear');
+                              return;
+                            }
+
+                            // Filter out sample data
+                            const filtered = transcriptions.filter(t => 
+                              // Keep items that don't match any sample data criteria
+                              !t.id?.startsWith('sample_') && 
+                              !t.sessionId?.includes('sample') &&
+                              !t.metadata?.isSampleData
+                            );
+
+                            // Save filtered data
                             await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(filtered));
-                            Alert.alert('Success', 'Sample data cleared successfully');
+                            
+                            // Show success message with count
+                            Alert.alert(
+                              'Success', 
+                              `Cleared ${sampleCount} sample transcription${sampleCount !== 1 ? 's' : ''}`
+                            );
+
+                            // Optionally refresh settings/UI if needed
+                            loadSettings();
+
                           } catch (error) {
                             console.error('Error clearing sample data:', error);
-                            Alert.alert('Error', 'Failed to clear sample data');
+                            Alert.alert(
+                              'Error', 
+                              'Failed to clear sample data: ' + (error.message || 'Unknown error')
+                            );
                           }
                         }
                       }
@@ -319,30 +396,78 @@ export default function SettingsScreen() {
             </View>
 
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Export All Data</Text>
+              <Text style={styles.settingLabel}>Export Database</Text>
               <TouchableOpacity
                 style={styles.selector}
                 onPress={async () => {
                   try {
-                    const transcriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
-                    const summaries = await AsyncStorage.getItem(SUMMARIES_KEY);
-                    const settings = await AsyncStorage.getItem(SETTINGS_KEY);
-                    
+                    // Show loading state
+                    Alert.alert('Preparing Export', 'Please wait while we prepare your data...');
+
+                    // Create a temporary directory for export
+                    const tempDir = `${FileSystem.cacheDirectory}export/`;
+                    await FileSystem.makeDirectoryAsync(tempDir, { intermediates: true });
+
+                    // Get all data dynamically
+                    const storageData = await getAllAsyncStorageData();
+
                     const exportData = {
-                      transcriptions,
-                      summaries,
-                      settings: JSON.parse(settings),
-                      exportDate: new Date().toISOString()
+                      data: storageData,
+                      metadata: {
+                        exportDate: new Date().toISOString(),
+                        appVersion: require('../../app.json').expo.version,
+                        platform: Platform.OS,
+                        platformVersion: Platform.Version,
+                        storageKeys: Object.keys(storageData),
+                        dataTypes: Object.entries(storageData).reduce((acc, [key, value]) => {
+                          acc[key] = {
+                            type: typeof value,
+                            isArray: Array.isArray(value),
+                            itemCount: Array.isArray(value) ? value.length : null,
+                            size: JSON.stringify(value).length
+                          };
+                          return acc;
+                        }, {})
+                      }
                     };
 
-                    const jsonString = JSON.stringify(exportData, null, 2);
-                    await Share.share({
-                      message: jsonString,
-                      title: 'Voice Notes App Data Export'
-                    });
+                    // Save JSON data with formatted output
+                    const jsonPath = `${tempDir}voicenotes_backup_${new Date().toISOString().split('T')[0]}.json`;
+                    await FileSystem.writeAsStringAsync(
+                      jsonPath,
+                      JSON.stringify(exportData, null, 2)
+                    );
+
+                    // Check if sharing is available
+                    const isSharingAvailable = await Sharing.isAvailableAsync();
+                    
+                    if (isSharingAvailable) {
+                      // Share the JSON file directly
+                      await Sharing.shareAsync(jsonPath, {
+                        mimeType: 'application/json',
+                        dialogTitle: 'Export Voice Notes Data',
+                        UTI: 'public.json'
+                      });
+
+                      // Show export summary
+                      Alert.alert(
+                        'Export Complete',
+                        `Successfully exported ${Object.keys(storageData).length} data items\n` +
+                        `Total size: ${(JSON.stringify(exportData).length / 1024).toFixed(2)} KB`
+                      );
+                    } else {
+                      Alert.alert('Error', 'Sharing is not available on this device');
+                    }
+
+                    // Cleanup temporary files
+                    await FileSystem.deleteAsync(tempDir, { idempotent: true });
+
                   } catch (error) {
                     console.error('Error exporting data:', error);
-                    Alert.alert('Error', 'Failed to export data');
+                    Alert.alert(
+                      'Export Error',
+                      'Failed to export data: ' + (error.message || 'Unknown error')
+                    );
                   }
                 }}
               >
@@ -413,23 +538,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    paddingRight: 4,
   },
   settingLabel: {
     fontSize: 16,
     color: '#333',
+    flex: 1,
+    marginRight: 12,
   },
   selector: {
     backgroundColor: 'rgba(98, 0, 238, 0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    minWidth: 40,
+    minWidth: 100,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   selectorText: {
     color: '#6200ee',
     fontSize: 14,
     fontWeight: '500',
+    textAlign: 'center',
   },
   resetButtonContainer: {
     marginTop: 20,
@@ -437,10 +567,11 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   resetSelector: {
-    backgroundColor: 'rgba(220, 53, 69, 0.1)', // Light red background
+    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+    minWidth: 100,
   },
   resetText: {
-    color: '#dc3545', // Red text
+    color: '#dc3545',
   },
   button: undefined,
   buttonText: undefined,

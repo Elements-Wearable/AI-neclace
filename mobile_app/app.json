@@ -23,7 +23,9 @@
         "NSMicrophoneUsageDescription": "Allow Elements AI Necklace to access your microphone for voice recording.",
         "UIRequiresPersistentWiFi": true,
         "NSLocationWhenInUseUsageDescription": "This app needs access to location to add geotags to your transcriptions.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to add geotags to your transcriptions when recording in the background."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to add geotags to your transcriptions when recording in the background.",
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true
       },
       "userInterfaceStyle": "automatic"
     },
@@ -37,7 +39,9 @@
         "FOREGROUND_SERVICE",
         "WAKE_LOCK",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ],
       "userInterfaceStyle": "automatic"
     },
@@ -52,6 +56,12 @@
           "backgroundModes": [
             "audio"
           ]
+        }
+      ],
+      [
+        "expo-file-system",
+        {
+          "filePermission": "Allows reading and writing files to the app's directory."
         }
       ]
     ]
