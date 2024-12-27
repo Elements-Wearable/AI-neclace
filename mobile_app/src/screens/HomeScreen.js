@@ -70,11 +70,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   utteranceContainer: {
-    borderLeftWidth: 3,
-    paddingLeft: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 4,
-    padding: 10,
+    backgroundColor: '#fff',
+    borderLeftWidth: 4,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -84,62 +84,38 @@ const styles = StyleSheet.create({
   utteranceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
-  speakerText: {
+  speakerInfo: {
+    flex: 1,
+  },
+  speakerLabel: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    marginBottom: 2,
   },
-  timeText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  transcriptionText: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  confidenceText: {
+  confidenceScore: {
     fontSize: 12,
     color: '#666',
     fontStyle: 'italic',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+  timeInfo: {
+    alignItems: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 20,
-    width: '100%',
-    maxHeight: '80%',
+  dateLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-    color: '#6200ee',
+  timeLabel: {
+    fontSize: 12,
+    color: '#666',
   },
-  closeButton: {
-    backgroundColor: '#6200ee',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 15,
-  },
-  recordingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    backgroundColor: 'rgba(220, 53, 69, 0.1)',
-    borderRadius: 4,
+  utteranceText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
   },
   recordingDot: {
     width: 12,
@@ -466,6 +442,35 @@ const styles = StyleSheet.create({
   settingsButtonText: {
     fontSize: 24,
   },
+  metadataContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  metadataLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  topicsContainer: {
+    marginVertical: 4,
+  },
+  topicsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  topicTag: {
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  topicText: {
+    fontSize: 12,
+    color: '#6200ee',
+  },
 });
 
 // Helper function
@@ -508,6 +513,32 @@ const processWithRetry = async (fn, maxRetries = 3, delayMs = 1000) => {
     }
   }
   throw lastError;
+};
+
+// Add this function to get settings
+const getSettings = async () => {
+  try {
+    const savedSettings = await AsyncStorage.getItem(SETTINGS_KEY);
+    return savedSettings ? JSON.parse(savedSettings) : defaultSettings;
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    return defaultSettings;
+  }
+};
+
+// Add this helper function for formatting timestamps
+const formatDateTime = (timestamp) => {
+  const date = new Date(timestamp);
+  return {
+    time: date.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    }),
+    date: date.toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric'
+    })
+  };
 };
 
 // Main component
@@ -589,77 +620,83 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  // Add recording functions
+  // Update setupRecording function
+  const setupRecording = async () => {
+    try {
+      console.log('Setting up new recording...');
+      const settings = await getSettings();
+      
+      const recording = new Audio.Recording();
+      
+      // Use high quality setting from settings
+      const recordingOptions = settings.highQualityAudio 
+        ? Audio.RecordingOptionsPresets.HIGH_QUALITY
+        : Audio.RecordingOptionsPresets.LOW_QUALITY;
+      
+      await recording.prepareToRecordAsync(recordingOptions);
+      
+      console.log('Recording prepared with quality:', settings.highQualityAudio ? 'HIGH' : 'LOW');
+      return recording;
+    } catch (error) {
+      console.error('Error in setupRecording:', error);
+      throw error;
+    }
+  };
+
   const startRecording = async () => {
     try {
+      console.log('Starting recording setup...');
+      await Audio.requestPermissionsAsync();
+      
       await cleanupRecording();
       await setupAudioSession();
 
-      // Generate new session ID when starting recording
       const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       setCurrentSessionId(sessionId);
-      lastStoredChunk.current.clear(); // Clear previous chunks
+      console.log('Created new session:', sessionId);
 
-      console.log('🎤 Starting new recording session:', sessionId);
-      const newRecording = new Audio.Recording();
-      await newRecording.prepareToRecordAsync({
-        android: {
-          extension: '.m4a',
-          outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_MPEG_4,
-          audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_AAC,
-          sampleRate: settings?.highQualityAudio ? 44100 : 22050,
-          numberOfChannels: settings?.highQualityAudio ? 2 : 1,
-          bitRate: settings?.highQualityAudio ? 128000 : 64000,
-        },
-        ios: {
-          extension: '.m4a',
-          audioQuality: settings?.highQualityAudio ? 
-            Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_MAX :
-            Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_MEDIUM,
-          sampleRate: settings?.highQualityAudio ? 44100 : 22050,
-          numberOfChannels: settings?.highQualityAudio ? 2 : 1,
-          bitRate: settings?.highQualityAudio ? 128000 : 64000,
-          linearPCMBitDepth: settings?.highQualityAudio ? 16 : 8,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false,
-        },
-      });
-      
+      const newRecording = await setupRecording();
+      console.log('Recording setup complete');
+
       await newRecording.startAsync();
       console.log('Recording started successfully');
       setRecording(newRecording);
       setIsRecording(true);
-      setIsBackgroundRecording(true);
-
-      // Start processing chunks in background
+      
+      // Start the chunk processing interval
       recordingInterval.current = setInterval(async () => {
         try {
           if (!recording) return;
-
+          console.log('Processing new chunk...');
+          
           const uri = recording.getURI();
-          if (!uri) return;
+          if (!uri) {
+            console.log('No URI available yet');
+            return;
+          }
 
+          console.log('Got recording URI:', uri);
           const currentRecording = recording;
+          
+          // Start new recording before processing current one
           await startNewRecordingChunk();
           await currentRecording.stopAndUnloadAsync();
           
-          // Add transcription task to queue
-          processingTasks.current.push({
-            type: 'transcription',
-            uri,
-            timestamp: Date.now()
-          });
-
-          // Start background processing
-          processTasksInBackground().catch(console.error);
-
+          // Add to processing queue
+          processingQueue.current.push(uri);
+          setTotalChunks(prev => prev + 1);
+          
+          // Start processing
+          processNextInQueue().catch(console.error);
+          
         } catch (error) {
           console.error('Error in recording interval:', error);
         }
       }, CHUNK_DURATION);
 
-    } catch (err) {
-      console.error('Failed to start recording:', err);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      Alert.alert('Error', 'Failed to start recording. Please try again.');
       await cleanupRecording();
     }
   };
@@ -780,115 +817,72 @@ export default function HomeScreen({ navigation }) {
   // Update the processChunkInRealTime function
   const processChunkInRealTime = async (uri) => {
     try {
-      if (!currentSessionId) {
-        throw new Error('No active session ID');
-      }
-
-      const chunkId = `${currentSessionId}_chunk_${Date.now()}`;
-      console.log('🎯 Processing chunk:', chunkId);
-
-      // Validate URI
-      if (!uri) {
-        throw new Error('No URI provided for processing');
-      }
-
-      setProcessingStatus('Preparing audio...');
-      console.log('📊 Fetching audio blob...');
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      const settings = await getSettings();
       
-      // Validate blob
-      console.log('📊 Blob size:', blob.size, 'bytes');
-      if (blob.size < 1024) {
-        console.log('⚠️ Chunk too small, skipping');
-        return;
-      }
-
-      setProcessingStatus('Sending to Deepgram...');
-      console.log('🚀 Sending to Deepgram API...');
-      const dgResponse = await fetch(
-        'https://api.deepgram.com/v1/listen?' +
-        'model=whisper-large&' +
-        `language=${appSettings?.language || 'en'}&` +
-        `diarize=${appSettings?.autoSpeakerDetection || true}&` +
-        `diarize_version=3&` +
-        `channels=1&` +
-        `smart_format=${appSettings?.smartFormatting || true}&` +
-        `punctuate=${appSettings?.autoPunctuation || true}&` +
-        `diarize_min_speakers=1&` +
-        `diarize_max_speakers=${appSettings?.maxSpeakers || 2}&` +
-        'encoding=linear16&' +
-        'sample_rate=16000',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Token ${DEEPGRAM_API_KEY}`,
-            'Content-Type': 'audio/wav',
-          },
-          body: blob
+      const response = await fetch('https://api.deepgram.com/v1/listen', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${DEEPGRAM_API_KEY}`,
+          'Content-Type': 'audio/wav'
+        },
+        body: await fetch(uri).then(r => r.blob()),
+        query: {
+          language: settings.language,
+          model: 'general',
+          smart_format: settings.smartFormatting,
+          punctuate: settings.autoPunctuation,
+          diarize: settings.autoSpeakerDetection,
+          speakers: settings.maxSpeakers,
+          detect_language: true, // Add language detection
+          detect_topics: true,   // Add topic detection
+          utterances: true,      // Get per-utterance metadata
+          numerals: true,        // Convert numbers to digits
+          profanity_filter: true // Optional profanity filtering
         }
-      );
+      });
 
-      // Validate Deepgram response
-      if (!dgResponse.ok) {
-        const errorText = await dgResponse.text();
-        console.error('❌ Deepgram error details:', errorText);
-        throw new Error(`Deepgram error: ${dgResponse.status} - ${errorText}`);
-      }
-
-      setProcessingStatus('Processing response...');
-      console.log('📝 Processing Deepgram response...');
-      const data = await dgResponse.json();
-
-      // Validate response data
-      if (!data.results) {
-        throw new Error('Invalid response from Deepgram: missing results');
-      }
-
-      if (!data.results.utterances?.length) {
-        console.log('ℹ️ No utterances in response');
-        return;
-      }
-
-      console.log('✅ Received', data.results.utterances.length, 'utterances');
-
-      // Process transcription
-      const processedTranscription = normalizeUtterances(data.results.utterances);
-      console.log('✨ Normalized transcription:', processedTranscription.length, 'utterances');
+      const data = await response.json();
       
-      // Update UI
-      setTranscription(prev => [...prev, ...processedTranscription]);
-      setProcessedChunks(prev => prev + 1);
-      setProcessingStatus('Transcription received');
+      // Extract enhanced metadata
+      const metadata = {
+        detectedLanguage: data.results?.detected_language,
+        topics: data.results?.topics || [],
+        wordCount: data.results?.channels[0]?.alternatives[0]?.words?.length || 0,
+        duration: data.metadata?.duration,
+        channels: data.metadata?.channels,
+        sampleRate: data.metadata?.sample_rate,
+        audioFormat: data.metadata?.audio_format,
+        modelUsed: data.metadata?.model_info?.name,
+        modelVersion: data.metadata?.model_info?.version,
+      };
 
-      // Store in background
-      if (processedTranscription.length > 0) {
-        const transcriptionData = {
-          id: chunkId,
-          sessionId: currentSessionId,
-          timestamp: new Date().toISOString(),
-          utterances: processedTranscription,
-          audioUri: uri,
-          deviceInfo: {
-            platform: 'mobile',
-            version: '1.0'
-          },
-          settings: {
-            model: 'whisper-large',
-            chunkDuration: CHUNK_DURATION,
-          }
-        };
+      // Process transcription with enhanced data
+      const processedTranscription = data.results.channels[0].alternatives[0].words.map(word => ({
+        word: word.word,
+        start: word.start,
+        end: word.end,
+        confidence: word.confidence,
+        speaker: word.speaker,
+        punctuated: word.punctuated_word
+      }));
 
-        console.log('💾 Storing transcription for chunk:', chunkId);
-        await storeTranscriptionInBackground(transcriptionData);
-        
-        // Track stored chunk
-        lastStoredChunk.current.add(chunkId);
-        console.log('✅ Transcription stored successfully:', chunkId);
-      }
+      // Store enhanced data
+      const transcriptionData = {
+        id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        sessionId: currentSessionId,
+        timestamp: new Date().toISOString(),
+        metadata,
+        utterances: processedTranscription,
+        audioUri: uri,
+        settings: settings // Store current settings with transcription
+      };
 
+      await storeTranscriptionInBackground(transcriptionData);
+
+      // Update UI with enhanced display
+      return transcriptionData;
     } catch (error) {
-      console.error('❌ Error processing chunk:', error);
+      console.error('Error processing chunk:', error);
       throw error;
     }
   };
@@ -1084,6 +1078,57 @@ export default function HomeScreen({ navigation }) {
     </Modal>
   );
 
+  // Update the transcription card UI to show more metadata
+  const TranscriptionCard = ({ utterance, metadata }) => {
+    const { time, date } = formatDateTime(utterance.timestamp);
+    
+    return (
+      <View style={styles.utteranceContainer}>
+        <View style={styles.utteranceHeader}>
+          <View style={styles.speakerInfo}>
+            <Text style={styles.speakerLabel}>
+              {utterance.speaker}
+            </Text>
+            <Text style={styles.confidenceScore}>
+              {Math.round(utterance.confidence * 100)}% confidence
+            </Text>
+          </View>
+          <View style={styles.timeInfo}>
+            <Text style={styles.dateLabel}>{date}</Text>
+            <Text style={styles.timeLabel}>{time}</Text>
+          </View>
+        </View>
+        
+        <Text style={styles.utteranceText}>{utterance.text}</Text>
+        
+        {/* Add metadata display */}
+        <View style={styles.metadataContainer}>
+          <Text style={styles.metadataLabel}>
+            Language: {metadata.detectedLanguage}
+          </Text>
+          {metadata.topics.length > 0 && (
+            <View style={styles.topicsContainer}>
+              <Text style={styles.metadataLabel}>Topics:</Text>
+              <View style={styles.topicsList}>
+                {metadata.topics.map((topic, index) => (
+                  <View key={index} style={styles.topicTag}>
+                    <Text style={styles.topicText}>{topic}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+          <Text style={styles.metadataLabel}>
+            Words: {metadata.wordCount}
+          </Text>
+          <Text style={styles.metadataLabel}>
+            Duration: {metadata.duration.toFixed(2)}s
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   // Rest of your component code...
 
   return (
@@ -1139,24 +1184,39 @@ export default function HomeScreen({ navigation }) {
           <ScrollView 
             style={styles.transcriptionScroll}
             contentContainerStyle={styles.transcriptionContent}
+            ref={scrollViewRef}
           >
-            {transcription.map((utterance) => (
-              <View
-                key={utterance.id}
-                style={[
-                  styles.utteranceContainer,
-                  { borderLeftColor: getColorForSpeaker(utterance.speakerId) }
-                ]}
-              >
-                <Text style={styles.utteranceHeader}>
-                  <Text style={[styles.speakerLabel, { color: getColorForSpeaker(utterance.speakerId) }]}>
-                    {utterance.speaker}
-                  </Text>
-                  <Text style={styles.timeLabel}>{formatTime(utterance.timeStart)}</Text>
-                </Text>
-                <Text style={styles.utteranceText}>{utterance.text}</Text>
-              </View>
-            ))}
+            {transcription.map((utterance) => {
+              const { time, date } = formatDateTime(utterance.timestamp);
+              return (
+                <View
+                  key={utterance.id}
+                  style={[
+                    styles.utteranceContainer,
+                    { borderLeftColor: getColorForSpeaker(utterance.speakerId) }
+                  ]}
+                >
+                  <View style={styles.utteranceHeader}>
+                    <View style={styles.speakerInfo}>
+                      <Text style={[
+                        styles.speakerLabel, 
+                        { color: getColorForSpeaker(utterance.speakerId) }
+                      ]}>
+                        {utterance.speaker}
+                      </Text>
+                      <Text style={styles.confidenceScore}>
+                        {Math.round(utterance.confidence * 100)}% confidence
+                      </Text>
+                    </View>
+                    <View style={styles.timeInfo}>
+                      <Text style={styles.dateLabel}>{date}</Text>
+                      <Text style={styles.timeLabel}>{time}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.utteranceText}>{utterance.text}</Text>
+                </View>
+              );
+            })}
           </ScrollView>
         </View>
 
