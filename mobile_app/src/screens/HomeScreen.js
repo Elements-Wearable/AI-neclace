@@ -818,6 +818,14 @@ export default function HomeScreen({ navigation }) {
   const processChunkInRealTime = async (uri) => {
     try {
       const settings = await getSettings();
+      console.log('🔧 Processing with settings:', {
+        language: settings.language,
+        audioQuality: settings.highQualityAudio ? 'HIGH' : 'LOW',
+        speakerDetection: settings.autoSpeakerDetection,
+        maxSpeakers: settings.maxSpeakers,
+        smartFormatting: settings.smartFormatting,
+        autoPunctuation: settings.autoPunctuation
+      });
       
       const response = await fetch('https://api.deepgram.com/v1/listen', {
         method: 'POST',
@@ -833,17 +841,17 @@ export default function HomeScreen({ navigation }) {
           punctuate: settings.autoPunctuation,
           diarize: settings.autoSpeakerDetection,
           speakers: settings.maxSpeakers,
-          detect_language: true, // Add language detection
-          detect_topics: true,   // Add topic detection
-          utterances: true,      // Get per-utterance metadata
-          numerals: true,        // Convert numbers to digits
-          profanity_filter: true // Optional profanity filtering
+          detect_language: true,
+          detect_topics: true,
+          utterances: true,
+          numerals: true,
+          profanity_filter: true
         }
       });
 
       const data = await response.json();
       
-      // Extract enhanced metadata
+      // Extract metadata with settings
       const metadata = {
         detectedLanguage: data.results?.detected_language,
         topics: data.results?.topics || [],
@@ -854,33 +862,55 @@ export default function HomeScreen({ navigation }) {
         audioFormat: data.metadata?.audio_format,
         modelUsed: data.metadata?.model_info?.name,
         modelVersion: data.metadata?.model_info?.version,
+        processingSettings: {
+          language: settings.language,
+          audioQuality: settings.highQualityAudio ? 'HIGH' : 'LOW',
+          speakerDetection: settings.autoSpeakerDetection,
+          maxSpeakers: settings.maxSpeakers,
+          smartFormatting: settings.smartFormatting,
+          autoPunctuation: settings.autoPunctuation,
+          showTabLabels: settings.showTabLabels,
+          tabBarAnimation: settings.tabBarAnimation
+        }
       };
 
-      // Process transcription with enhanced data
-      const processedTranscription = data.results.channels[0].alternatives[0].words.map(word => ({
-        word: word.word,
-        start: word.start,
-        end: word.end,
-        confidence: word.confidence,
-        speaker: word.speaker,
-        punctuated: word.punctuated_word
-      }));
-
-      // Store enhanced data
-      const transcriptionData = {
+      // Format the transcription for display with settings
+      const utterance = {
         id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        sessionId: currentSessionId,
+        speaker: `Speaker ${data.results?.channels[0]?.alternatives[0]?.speaker || 1}`,
+        speakerId: data.results?.channels[0]?.alternatives[0]?.speaker || 1,
+        text: data.results?.channels[0]?.alternatives[0]?.transcript || '',
+        confidence: data.results?.channels[0]?.alternatives[0]?.confidence || 0,
         timestamp: new Date().toISOString(),
+        metadata: metadata,
+        settings: settings // Include full settings with each utterance
+      };
+
+      console.log('📝 Created utterance with settings:', {
+        id: utterance.id,
+        speaker: utterance.speaker,
+        settingsUsed: settings
+      });
+
+      // Update the UI
+      setTranscription(prev => [...prev, utterance]);
+      setProcessedChunks(prev => prev + 1);
+
+      // Store with complete metadata and settings
+      const transcriptionData = {
+        id: utterance.id,
+        sessionId: currentSessionId,
+        timestamp: utterance.timestamp,
         metadata,
-        utterances: processedTranscription,
+        utterances: [utterance],
         audioUri: uri,
-        settings: settings // Store current settings with transcription
+        settings: settings,
+        processingSettings: metadata.processingSettings
       };
 
       await storeTranscriptionInBackground(transcriptionData);
-
-      // Update UI with enhanced display
       return transcriptionData;
+
     } catch (error) {
       console.error('Error processing chunk:', error);
       throw error;
@@ -1082,6 +1112,12 @@ export default function HomeScreen({ navigation }) {
   const TranscriptionCard = ({ utterance, metadata }) => {
     const { time, date } = formatDateTime(utterance.timestamp);
     
+    // Add null check for metadata
+    if (!metadata) {
+      console.warn('Missing metadata for utterance:', utterance.id);
+      return null;
+    }
+    
     return (
       <View style={styles.utteranceContainer}>
         <View style={styles.utteranceHeader}>
@@ -1101,12 +1137,11 @@ export default function HomeScreen({ navigation }) {
         
         <Text style={styles.utteranceText}>{utterance.text}</Text>
         
-        {/* Add metadata display */}
         <View style={styles.metadataContainer}>
           <Text style={styles.metadataLabel}>
-            Language: {metadata.detectedLanguage}
+            Language: {metadata.detectedLanguage || 'Not detected'}
           </Text>
-          {metadata.topics.length > 0 && (
+          {metadata.topics && metadata.topics.length > 0 && (
             <View style={styles.topicsContainer}>
               <Text style={styles.metadataLabel}>Topics:</Text>
               <View style={styles.topicsList}>
@@ -1119,11 +1154,21 @@ export default function HomeScreen({ navigation }) {
             </View>
           )}
           <Text style={styles.metadataLabel}>
-            Words: {metadata.wordCount}
+            Words: {metadata.wordCount || 0}
           </Text>
           <Text style={styles.metadataLabel}>
-            Duration: {metadata.duration.toFixed(2)}s
+            Duration: {(metadata.duration || 0).toFixed(2)}s
           </Text>
+          {metadata.processingSettings && (
+            <>
+              <Text style={styles.metadataLabel}>
+                Quality: {metadata.processingSettings.audioQuality || 'Standard'}
+              </Text>
+              <Text style={styles.metadataLabel}>
+                Speaker Detection: {metadata.processingSettings.speakerDetection ? 'ON' : 'OFF'}
+              </Text>
+            </>
+          )}
         </View>
       </View>
     );
@@ -1186,37 +1231,13 @@ export default function HomeScreen({ navigation }) {
             contentContainerStyle={styles.transcriptionContent}
             ref={scrollViewRef}
           >
-            {transcription.map((utterance) => {
-              const { time, date } = formatDateTime(utterance.timestamp);
-              return (
-                <View
-                  key={utterance.id}
-                  style={[
-                    styles.utteranceContainer,
-                    { borderLeftColor: getColorForSpeaker(utterance.speakerId) }
-                  ]}
-                >
-                  <View style={styles.utteranceHeader}>
-                    <View style={styles.speakerInfo}>
-                      <Text style={[
-                        styles.speakerLabel, 
-                        { color: getColorForSpeaker(utterance.speakerId) }
-                      ]}>
-                        {utterance.speaker}
-                      </Text>
-                      <Text style={styles.confidenceScore}>
-                        {Math.round(utterance.confidence * 100)}% confidence
-                      </Text>
-                    </View>
-                    <View style={styles.timeInfo}>
-                      <Text style={styles.dateLabel}>{date}</Text>
-                      <Text style={styles.timeLabel}>{time}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.utteranceText}>{utterance.text}</Text>
-                </View>
-              );
-            })}
+            {transcription.map((utterance) => (
+              <TranscriptionCard 
+                key={utterance.id}
+                utterance={utterance}
+                metadata={utterance.metadata}
+              />
+            ))}
           </ScrollView>
         </View>
 
