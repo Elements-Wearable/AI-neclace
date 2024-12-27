@@ -10,7 +10,8 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Alert
 } from 'react-native';
 import {
   CHUNK_DURATION,
@@ -470,6 +471,26 @@ const styles = StyleSheet.create({
   topicText: {
     fontSize: 12,
     color: '#6200ee',
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  clearButton: {
+    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    color: '#dc3545',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 
@@ -1174,11 +1195,51 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
+  // Add this function inside the HomeScreen component
+  const handleClearAll = () => {
+    Alert.alert(
+      'Clear All Recordings',
+      'Are you sure you want to delete all recordings? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await storage.clearAllTranscriptions();
+              setTranscription([]); // Clear current transcriptions
+              setProcessedChunks(0);
+              setTotalChunks(0);
+              console.log('✨ All recordings cleared');
+            } catch (error) {
+              console.error('Error clearing recordings:', error);
+              Alert.alert('Error', 'Failed to clear recordings');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Rest of your component code...
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
+        {/* Top Section with Clear Button */}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={handleClearAll}
+          >
+            <Text style={styles.clearButtonText}>Clear All</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Top Section - Recording Controls */}
         <View style={styles.topSection}>
           <TouchableOpacity
