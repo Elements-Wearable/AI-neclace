@@ -2,10 +2,10 @@
   "expo": {
     "name": "Elements AI Necklace",
     "slug": "elements-ai-necklace",
-    "version": "1.0.0",
+    "version": "0.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -24,7 +24,8 @@
         "UIRequiresPersistentWiFi": true,
         "NSLocationWhenInUseUsageDescription": "This app needs access to location to add geotags to your transcriptions.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to add geotags to your transcriptions when recording in the background."
-      }
+      },
+      "userInterfaceStyle": "automatic"
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +38,8 @@
         "WAKE_LOCK",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "userInterfaceStyle": "automatic"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -46,7 +48,7 @@
       [
         "expo-av",
         {
-          "microphonePermission": "Allow Elements AI Necklace to access your microphone for voice recording.",
+          "microphonePermission": "Allow AI Necklace to access your microphone for voice recording.",
           "backgroundModes": [
             "audio"
           ]
