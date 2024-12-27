@@ -1,0 +1,41 @@
+name: ESLint Check
+
+on:
+  push:
+    paths:
+      - "backend/node-service/**"
+      - "frontend/**"
+      - "mobile_app/**"
+  pull_request:
+    paths:
+      - "backend/node-service/**"
+      - "frontend/**"
+      - "mobile_app/**"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    # Define matrix strategy for multiple folders
+    strategy:
+      matrix:
+        folder: ["backend/node-service", "frontend", "mobile_app"]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      # Install dependencies for each project
+      - name: Install Dependencies
+        working-directory: ${{ matrix.folder }}
+        run: npm install
+
+      # Run ESLint
+      - name: Run ESLint
+        working-directory: ${{ matrix.folder }}
+        run: npx eslint . --max-warnings=0
