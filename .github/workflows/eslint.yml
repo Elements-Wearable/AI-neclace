@@ -34,7 +34,7 @@ jobs:
       # Install dependencies for each project
       - name: Install Dependencies
         working-directory: ${{ matrix.folder }}
-        run: npm install
+        run: npm install -c
 
       # Run ESLint
       - name: Run ESLint
