@@ -35,7 +35,6 @@ export default function LiveTranscriptionScreen() {
     try {
       logger.debug('Initializing WebSocket connection...');
       
-      // Simplified options based on Deepgram's documentation
       const options = {
         encoding: 'linear16',
         sample_rate: 16000,
@@ -44,7 +43,10 @@ export default function LiveTranscriptionScreen() {
         language: 'en-US',
         interim_results: true,
         punctuate: true,
-        smart_format: true
+        smart_format: true,
+        diarize: true,
+        speakers: 2,
+        utterances: true
       };
 
       // Properly encode the query parameters
@@ -88,31 +90,29 @@ export default function LiveTranscriptionScreen() {
             logger.debug('Received metadata:', data);
           } else if (data.channel?.alternatives?.[0]?.transcript) {
             const transcript = data.channel.alternatives[0].transcript.trim();
+            const speakerId = data.channel.alternatives[0].words?.[0]?.speaker || 0;
             
             if (transcript) {
               if (data.is_final) {
-                // For final results, append to main transcription
                 setTranscription(prev => {
-                  // Get the last line of previous transcription
                   const prevLines = prev.split('\n');
                   const lastLine = prevLines[prevLines.length - 1]?.trim();
                   
-                  // If this transcript is different from both the last line
-                  // and current interim transcript, add it
-                  if (transcript !== lastLine && transcript !== currentTranscript) {
-                    return prev + (prev ? '\n' : '') + transcript;
+                  // Format with speaker ID
+                  const formattedTranscript = `Speaker ${speakerId + 1}: ${transcript}`;
+                  
+                  if (formattedTranscript !== lastLine && formattedTranscript !== currentTranscript) {
+                    return prev + (prev ? '\n' : '') + formattedTranscript;
                   }
                   return prev;
                 });
-                // Clear interim only if it matches this final transcript
                 if (currentTranscript === transcript) {
                   setCurrentTranscript('');
                 }
               } else {
-                // For interim results, just update the current transcript
-                // if it's different from what we already have
                 if (transcript !== currentTranscript) {
-                  setCurrentTranscript(transcript);
+                  // Format interim results with speaker ID too
+                  setCurrentTranscript(`Speaker ${speakerId + 1}: ${transcript}`);
                 }
               }
               scrollViewRef.current?.scrollToEnd({ animated: true });
