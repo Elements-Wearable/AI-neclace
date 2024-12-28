@@ -9,6 +9,7 @@ import HistoryScreen from '../HistoryScreen';
 import HomeScreen from '../HomeScreen';
 import SettingsScreen from '../SettingsScreen';
 import SummaryScreen from '../SummaryScreen';
+import LiveTranscriptionScreen from '../LiveTranscriptionScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -38,6 +39,12 @@ const SCREEN_CONFIG = [
     component: SettingsScreen,
     iconName: 'settings',
     iconOutline: 'settings-outline',
+  },
+  {
+    name: 'Live',
+    component: LiveTranscriptionScreen,
+    iconName: 'radio',
+    iconOutline: 'radio-outline',
   },
 ];
 
