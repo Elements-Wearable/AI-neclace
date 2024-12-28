@@ -23,6 +23,12 @@ const SCREEN_CONFIG = [
     isLarge: true,
   },
   {
+    name: 'Live',
+    component: LiveTranscriptionScreen,
+    iconName: 'radio',
+    iconOutline: 'radio-outline',
+  },
+  {
     name: 'History',
     component: HistoryScreen,
     iconName: 'time',
@@ -39,12 +45,6 @@ const SCREEN_CONFIG = [
     component: SettingsScreen,
     iconName: 'settings',
     iconOutline: 'settings-outline',
-  },
-  {
-    name: 'Live',
-    component: LiveTranscriptionScreen,
-    iconName: 'radio',
-    iconOutline: 'radio-outline',
   },
 ];
 
