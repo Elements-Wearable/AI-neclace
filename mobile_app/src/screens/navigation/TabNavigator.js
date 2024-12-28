@@ -7,9 +7,9 @@ import logger from '../../utils/logger';
 // Import screens
 import HistoryScreen from '../HistoryScreen';
 import HomeScreen from '../HomeScreen';
+import LiveTranscriptionScreen from '../LiveTranscriptionScreen';
 import SettingsScreen from '../SettingsScreen';
 import SummaryScreen from '../SummaryScreen';
-import LiveTranscriptionScreen from '../LiveTranscriptionScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -93,7 +93,9 @@ const TabNavigator = ({ settings }) => {
   };
 
   return (
-    <Tab.Navigator screenOptions={screenOptions}>
+    <Tab.Navigator 
+      screenOptions={screenOptions}
+    >
       {SCREEN_CONFIG.map(({ name, component, iconName, iconOutline, isLarge }) => (
         <Tab.Screen
           key={name}

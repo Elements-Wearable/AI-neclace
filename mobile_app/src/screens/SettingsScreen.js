@@ -11,7 +11,11 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { SETTINGS_KEY, SUPPORTED_LANGUAGES, THEME_OPTIONS, TRANSCRIPTIONS_KEY } from '../config/constants';
+import {
+    SETTINGS_KEY, SUPPORTED_LANGUAGES,
+    THEME_OPTIONS,
+    TRANSCRIPTIONS_KEY
+} from '../config/constants';
 import { SAMPLE_CONVERSATIONS } from '../config/sampleData';
 import logger from '../utils/logger';
 import DevelopmentSettings from './settings/DevelopmentSettings';
@@ -25,7 +29,6 @@ const defaultSettings = {
   utteranceThreshold: 0.3,
   autoPunctuation: true,
   showTabLabels: true,
-  tabBarAnimation: true,
   theme: THEME_OPTIONS.SYSTEM,
 };
 
@@ -62,6 +65,7 @@ export default function SettingsScreen() {
   const [logFiles, setLogFiles] = useState([]);
   const [selectedLogs, setSelectedLogs] = useState([]);
   const [showLogFiles, setShowLogFiles] = useState(false);
+  const [showAnimationModal, setShowAnimationModal] = useState(false);
 
   React.useEffect(() => {
     loadSettings();
@@ -324,14 +328,6 @@ export default function SettingsScreen() {
                 onValueChange={(value) => updateSetting('showTabLabels', value)}
               />
             </View>
-
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Tab Animation</Text>
-              <Switch
-                value={settings.tabBarAnimation}
-                onValueChange={(value) => updateSetting('tabBarAnimation', value)}
-              />
-            </View>
           </View>
 
           <DevelopmentSettings 
@@ -563,5 +559,28 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  settingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  settingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingText: {
+    marginLeft: 15,
+    flex: 1,
+  },
+  settingValue: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
   },
 }); 

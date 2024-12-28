@@ -29,7 +29,7 @@ export const SUPPORTED_LANGUAGES = [
 export const THEME_OPTIONS = {
   LIGHT: 'light',
   DARK: 'dark',
-  SYSTEM: 'automatic'
+  SYSTEM: 'system'
 };
 
 // Update defaultSettings
