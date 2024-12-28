@@ -11,6 +11,9 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import LanguageModal from '../components/LanguageModal';
+import MaxSpeakersModal from '../components/MaxSpeakersModal';
+import ThemeModal from '../components/ThemeModal';
 import {
     SETTINGS_KEY, SUPPORTED_LANGUAGES,
     THEME_OPTIONS,
@@ -62,10 +65,9 @@ const getAllAsyncStorageData = async () => {
 export default function SettingsScreen() {
   const [settings, setSettings] = React.useState(defaultSettings);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [logFiles, setLogFiles] = useState([]);
-  const [selectedLogs, setSelectedLogs] = useState([]);
-  const [showLogFiles, setShowLogFiles] = useState(false);
-  const [showAnimationModal, setShowAnimationModal] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [showMaxSpeakersModal, setShowMaxSpeakersModal] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
   React.useEffect(() => {
     loadSettings();
@@ -213,16 +215,7 @@ export default function SettingsScreen() {
               <Text style={styles.settingLabel}>Language</Text>
               <TouchableOpacity
                 style={styles.selector}
-                onPress={() => {
-                  Alert.alert(
-                    'Select Language',
-                    '',
-                    SUPPORTED_LANGUAGES.map(lang => ({
-                      text: lang.name,
-                      onPress: () => updateSetting('language', lang.code)
-                    }))
-                  );
-                }}
+                onPress={() => setShowLanguageModal(true)}
               >
                 <Text style={styles.selectorText}>
                   {SUPPORTED_LANGUAGES.find(l => l.code === settings.language)?.name || 'English'}
@@ -254,16 +247,7 @@ export default function SettingsScreen() {
               <Text style={styles.settingLabel}>Maximum Speakers</Text>
               <TouchableOpacity
                 style={styles.selector}
-                onPress={() => {
-                  Alert.alert(
-                    'Select Maximum Speakers',
-                    '',
-                    [2,3,4,5,6].map(num => ({
-                      text: num.toString(),
-                      onPress: () => updateSetting('maxSpeakers', num)
-                    }))
-                  );
-                }}
+                onPress={() => setShowMaxSpeakersModal(true)}
               >
                 <Text style={styles.selectorText}>{settings.maxSpeakers}</Text>
               </TouchableOpacity>
@@ -293,26 +277,7 @@ export default function SettingsScreen() {
               <Text style={styles.settingLabel}>Theme</Text>
               <TouchableOpacity
                 style={styles.selector}
-                onPress={() => {
-                  Alert.alert(
-                    'Select Theme',
-                    '',
-                    [
-                      {
-                        text: 'Light',
-                        onPress: () => updateSetting('theme', THEME_OPTIONS.LIGHT)
-                      },
-                      {
-                        text: 'Dark',
-                        onPress: () => updateSetting('theme', THEME_OPTIONS.DARK)
-                      },
-                      {
-                        text: 'System',
-                        onPress: () => updateSetting('theme', THEME_OPTIONS.SYSTEM)
-                      }
-                    ]
-                  );
-                }}
+                onPress={() => setShowThemeModal(true)}
               >
                 <Text style={styles.selectorText}>
                   {settings.theme === THEME_OPTIONS.LIGHT ? 'Light' :
@@ -344,7 +309,6 @@ export default function SettingsScreen() {
                     style: 'destructive',
                     onPress: async () => {
                       try {
-                        // Get and parse transcriptions
                         const rawTranscriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
                         if (!rawTranscriptions) {
                           Alert.alert('Info', 'No data to clear');
@@ -352,8 +316,6 @@ export default function SettingsScreen() {
                         }
 
                         const transcriptions = JSON.parse(rawTranscriptions);
-                        
-                        // Count sample data before filtering
                         const sampleCount = transcriptions.filter(t => 
                           t.id?.startsWith('sample_') || 
                           t.sessionId?.includes('sample') ||
@@ -365,26 +327,19 @@ export default function SettingsScreen() {
                           return;
                         }
 
-                        // Filter out sample data
                         const filtered = transcriptions.filter(t => 
-                          // Keep items that don't match any sample data criteria
                           !t.id?.startsWith('sample_') && 
                           !t.sessionId?.includes('sample') &&
                           !t.metadata?.isSampleData
                         );
 
-                        // Save filtered data
                         await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(filtered));
-                        
-                        // Show success message with count
                         Alert.alert(
                           'Success', 
                           `Cleared ${sampleCount} sample transcription${sampleCount !== 1 ? 's' : ''}`
                         );
 
-                        // Optionally refresh settings/UI if needed
                         loadSettings();
-
                       } catch (error) {
                         console.error('Error clearing sample data:', error);
                         Alert.alert(
@@ -411,6 +366,27 @@ export default function SettingsScreen() {
             </View>
           </TouchableOpacity>
         </ScrollView>
+
+        <LanguageModal
+          visible={showLanguageModal}
+          onClose={() => setShowLanguageModal(false)}
+          onSelect={(code) => updateSetting('language', code)}
+          currentLanguage={settings.language}
+        />
+
+        <MaxSpeakersModal
+          visible={showMaxSpeakersModal}
+          onClose={() => setShowMaxSpeakersModal(false)}
+          onSelect={(value) => updateSetting('maxSpeakers', value)}
+          currentValue={settings.maxSpeakers}
+        />
+
+        <ThemeModal
+          visible={showThemeModal}
+          onClose={() => setShowThemeModal(false)}
+          onSelect={(theme) => updateSetting('theme', theme)}
+          currentTheme={settings.theme}
+        />
       </View>
     </SafeAreaView>
   );
