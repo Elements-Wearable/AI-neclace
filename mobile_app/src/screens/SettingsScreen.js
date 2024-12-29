@@ -23,7 +23,7 @@ import {
 import { SAMPLE_CONVERSATIONS } from '../config/sampleData';
 import { addSampleMemoriesToExisting, filterOutSampleMemories } from '../config/sampleMemories';
 import logger from '../utils/logger';
-import DevelopmentSettings from './settings/DevelopmentSettings';
+import DevelopmentSettings from './settings/development';
 
 const defaultSettings = {
   language: 'en',
