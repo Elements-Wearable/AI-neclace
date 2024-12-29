@@ -15,11 +15,13 @@ import LanguageModal from '../components/LanguageModal';
 import MaxSpeakersModal from '../components/MaxSpeakersModal';
 import ThemeModal from '../components/ThemeModal';
 import {
+    MEMORIES_STORAGE_KEY,
     SETTINGS_KEY, SUPPORTED_LANGUAGES,
     THEME_OPTIONS,
     TRANSCRIPTIONS_KEY
 } from '../config/constants';
 import { SAMPLE_CONVERSATIONS } from '../config/sampleData';
+import { addSampleMemoriesToExisting, filterOutSampleMemories } from '../config/sampleMemories';
 import logger from '../utils/logger';
 import DevelopmentSettings from './settings/DevelopmentSettings';
 
@@ -204,6 +206,89 @@ export default function SettingsScreen() {
     }
   };
 
+  const manageSampleMemories = async (action) => {
+    try {
+      // Get existing memories
+      const existingMemoriesJson = await AsyncStorage.getItem(MEMORIES_STORAGE_KEY);
+      const existingMemories = existingMemoriesJson ? JSON.parse(existingMemoriesJson) : [];
+
+      let updatedMemories;
+      if (action === 'add') {
+        updatedMemories = addSampleMemoriesToExisting(existingMemories);
+        logger.info('Adding sample memories...');
+      } else if (action === 'remove') {
+        updatedMemories = filterOutSampleMemories(existingMemories);
+        logger.info('Removing sample memories...');
+      }
+
+      // Save updated memories
+      await AsyncStorage.setItem(MEMORIES_STORAGE_KEY, JSON.stringify(updatedMemories));
+      
+      Alert.alert(
+        'Success',
+        action === 'add' ? 'Sample memories added successfully' : 'Sample memories removed successfully'
+      );
+    } catch (error) {
+      logger.error(`Error ${action}ing sample memories:`, error);
+      Alert.alert('Error', `Failed to ${action} sample memories`);
+    }
+  };
+
+  const clearSampleData = () => {
+    Alert.alert(
+      'Clear Sample Transcripts',
+      'Are you sure you want to remove all sample transcripts? This will only remove generated sample data, not your actual recordings.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const rawTranscriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
+              if (!rawTranscriptions) {
+                Alert.alert('Info', 'No data to clear');
+                return;
+              }
+
+              const transcriptions = JSON.parse(rawTranscriptions);
+              const sampleCount = transcriptions.filter(t => 
+                t.id?.startsWith('sample_') || 
+                t.sessionId?.includes('sample') ||
+                t.metadata?.isSampleData
+              ).length;
+
+              if (sampleCount === 0) {
+                Alert.alert('Info', 'No sample transcripts found to clear');
+                return;
+              }
+
+              const filtered = transcriptions.filter(t => 
+                !t.id?.startsWith('sample_') && 
+                !t.sessionId?.includes('sample') &&
+                !t.metadata?.isSampleData
+              );
+
+              await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(filtered));
+              Alert.alert(
+                'Success', 
+                `Cleared ${sampleCount} sample transcript${sampleCount !== 1 ? 's' : ''}`
+              );
+
+              loadSettings();
+            } catch (error) {
+              logger.error('Error clearing sample data:', error);
+              Alert.alert(
+                'Error', 
+                'Failed to clear sample data: ' + (error.message || 'Unknown error')
+              );
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -295,66 +380,18 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <DevelopmentSettings 
-            settings={settings}
-            generateSampleData={generateSampleData}
-            clearSampleData={() => {
-              Alert.alert(
-                'Clear Sample Data',
-                'Are you sure you want to remove all sample data? This will only remove generated sample data, not your actual recordings.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { 
-                    text: 'Clear',
-                    style: 'destructive',
-                    onPress: async () => {
-                      try {
-                        const rawTranscriptions = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
-                        if (!rawTranscriptions) {
-                          Alert.alert('Info', 'No data to clear');
-                          return;
-                        }
-
-                        const transcriptions = JSON.parse(rawTranscriptions);
-                        const sampleCount = transcriptions.filter(t => 
-                          t.id?.startsWith('sample_') || 
-                          t.sessionId?.includes('sample') ||
-                          t.metadata?.isSampleData
-                        ).length;
-
-                        if (sampleCount === 0) {
-                          Alert.alert('Info', 'No sample data found to clear');
-                          return;
-                        }
-
-                        const filtered = transcriptions.filter(t => 
-                          !t.id?.startsWith('sample_') && 
-                          !t.sessionId?.includes('sample') &&
-                          !t.metadata?.isSampleData
-                        );
-
-                        await AsyncStorage.setItem(TRANSCRIPTIONS_KEY, JSON.stringify(filtered));
-                        Alert.alert(
-                          'Success', 
-                          `Cleared ${sampleCount} sample transcription${sampleCount !== 1 ? 's' : ''}`
-                        );
-
-                        loadSettings();
-                      } catch (error) {
-                        console.error('Error clearing sample data:', error);
-                        Alert.alert(
-                          'Error', 
-                          'Failed to clear sample data: ' + (error.message || 'Unknown error')
-                        );
-                      }
-                    }
-                  }
-                ]
-              );
-            }}
-            getAllAsyncStorageData={getAllAsyncStorageData}
-            updateSetting={updateSetting}
-          />
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Development</Text>
+            
+            <DevelopmentSettings 
+              settings={settings} 
+              updateSetting={updateSetting}
+              generateSampleData={generateSampleData}
+              clearSampleData={clearSampleData}
+              getAllAsyncStorageData={getAllAsyncStorageData}
+              manageSampleMemories={manageSampleMemories}
+            />
+          </View>
 
           <TouchableOpacity 
             style={[styles.settingRow, styles.resetButtonContainer]}
@@ -558,5 +595,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 2,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  button: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  addButton: {
+    backgroundColor: '#4CAF50',
+  },
+  removeButton: {
+    backgroundColor: '#FF5252',
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: '500',
   },
 }); 

@@ -184,4 +184,32 @@ export default StyleSheet.create({
     color: '#666',
     fontStyle: 'italic',
   },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  button: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  addButton: {
+    backgroundColor: '#4CAF50',
+  },
+  removeButton: {
+    backgroundColor: '#FF5252',
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: '500',
+  },
+  version: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+  },
 }); 

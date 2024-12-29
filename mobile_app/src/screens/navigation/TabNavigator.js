@@ -8,6 +8,7 @@ import logger from '../../utils/logger';
 import HistoryScreen from '../HistoryScreen';
 import HomeScreen from '../HomeScreen';
 import LiveTranscriptionScreen from '../LiveTranscriptionScreen';
+import MemoriesScreen from '../MemoriesScreen';
 import SettingsScreen from '../SettingsScreen';
 import SummaryScreen from '../SummaryScreen';
 
@@ -15,6 +16,12 @@ const Tab = createBottomTabNavigator();
 
 // Screen configurations for better maintainability
 const SCREEN_CONFIG = [
+  {
+    name: 'Memories',
+    component: MemoriesScreen,
+    iconName: 'heart',
+    iconOutline: 'heart-outline',
+  },
   {
     name: 'Record',
     component: HomeScreen,
