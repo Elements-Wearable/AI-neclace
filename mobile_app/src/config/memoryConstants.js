@@ -1,12 +1,17 @@
-// Memory review states
+// Memory states (whether accepted or rejected)
 export const MEMORY_STATES = {
-  NEW: 'new',
-  REVIEWED: 'reviewed',
-  ACCEPTED: 'accepted',
-  REJECTED: 'rejected'
+  PENDING: 'pending',    // Initial state, not yet accepted/rejected
+  ACCEPTED: 'accepted',  // User wants to keep this memory
+  REJECTED: 'rejected'   // User doesn't want to keep this memory
 };
 
-// Memory types/categories with descriptions and schema
+// Memory status (whether it's new or viewed)
+export const MEMORY_STATUS = {
+  NEW: 'new',           // Not yet viewed/actioned
+  VIEWED: 'viewed'      // Has been viewed/actioned
+};
+
+// Memory types/categories
 export const MEMORY_TYPES = {
   MEMORY: {
     id: 'memory',
@@ -15,45 +20,55 @@ export const MEMORY_TYPES = {
     icon: '💭',
     color: '#9C27B0', // Purple
     schema: {
-      title: String,
-      content: String,
-      timestamp: Date,
-      tags: Array,
-      mood: String,
-      location: {
+      id: String,           // Unique identifier
+      type: String,         // 'memory'
+      title: String,        // Title of the memory
+      content: String,      // Main content/body
+      timestamp: Date,      // When this memory occurred
+      state: String,        // MEMORY_STATES value
+      status: String,       // MEMORY_STATUS value
+      createdAt: Date,      // When this memory was created in the system
+      updatedAt: Date,      // Last time this memory was modified
+      tags: Array,          // Optional tags
+      location: {           // Optional location
         latitude: Number,
         longitude: Number,
         placeName: String
       },
-      attachments: Array, // URLs to photos, audio, etc.
-      importance: Number, // 1-5 rating
-      isPrivate: Boolean
+      attachments: Array,   // Optional attachments (URLs)
+      importance: Number,   // Optional importance rating (1-5)
+      isPrivate: Boolean    // Optional privacy flag
     }
   },
-  EVENT: {
-    id: 'event',
-    label: 'Event',
+  CALENDAR: {
+    id: 'calendar',
+    label: 'Calendar Event',
     description: 'Calendar events, appointments, and scheduled activities',
     icon: '📅',
     color: '#2196F3', // Blue
     schema: {
-      title: String,
-      description: String,
-      startDate: Date,
-      endDate: Date,
-      location: {
+      id: String,           // Unique identifier
+      type: String,         // 'calendar'
+      title: String,        // Event title
+      description: String,  // Event description
+      startDate: Date,      // Event start
+      endDate: Date,        // Event end
+      state: String,        // MEMORY_STATES value
+      status: String,       // MEMORY_STATUS value
+      createdAt: Date,      // When this event was created in the system
+      updatedAt: Date,      // Last time this event was modified
+      location: {           // Optional location
         latitude: Number,
         longitude: Number,
         placeName: String,
         address: String
       },
-      attendees: Array,
-      category: String, // work, personal, family, etc.
-      isRecurring: Boolean,
-      recurrenceRule: String, // RRULE format
-      reminders: Array, // Array of reminder times
-      attachments: Array,
-      status: String // confirmed, tentative, cancelled
+      attendees: Array,     // Optional attendees
+      category: String,     // Optional category (work, personal, family, etc.)
+      isRecurring: Boolean, // Whether this event repeats
+      recurrenceRule: String, // RRULE format if recurring
+      reminders: Array,     // Optional reminder times
+      attachments: Array    // Optional attachments
     }
   }
 };
