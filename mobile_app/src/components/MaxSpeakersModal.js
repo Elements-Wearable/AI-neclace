@@ -3,8 +3,7 @@ import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react
 
 const SPEAKER_OPTIONS = [2, 3, 4, 5, 6];
 
-const MaxSpeakersModal = ({ visible, onClose, onSelect, currentValue }) => {
-  return (
+const MaxSpeakersModal = ({ visible, onClose, onSelect, currentValue }) => (
     <Modal
       visible={visible}
       transparent={true}
@@ -39,7 +38,6 @@ const MaxSpeakersModal = ({ visible, onClose, onSelect, currentValue }) => {
       </View>
     </Modal>
   );
-};
 
 const styles = StyleSheet.create({
   modalContainer: {

@@ -88,18 +88,16 @@ export default function HistoryScreen({ navigation }) {
 
     // Sort dates using ISO string format
     return Object.entries(groups)
-      .sort(([dateA, itemsA], [dateB, itemsB]) => {
+      .sort(([dateA, itemsA], [dateB, itemsB]) => 
         // Primary sort by date (newest first)
-        return new Date(dateB) - new Date(dateA);
-      });
+         new Date(dateB) - new Date(dateA)
+      );
   };
 
-  const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
+  const formatTime = (timestamp) => new Date(timestamp).toLocaleTimeString([], { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
-  };
 
   const clearHistory = async () => {
     try {

@@ -298,8 +298,7 @@ export default function LiveTranscriptionScreen() {
   };
 
   // Cleanup on unmount
-  useEffect(() => {
-    return () => {
+  useEffect(() => () => {
       if (recording.current) {
         recording.current.stopAndUnloadAsync();
       }
@@ -307,8 +306,7 @@ export default function LiveTranscriptionScreen() {
         nextRecording.current.stopAndUnloadAsync();
       }
       clearInterval(chunkInterval.current);
-    };
-  }, []);
+    }, []);
 
   return (
     <SafeAreaView style={styles.safeArea}>

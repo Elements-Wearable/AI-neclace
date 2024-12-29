@@ -85,14 +85,8 @@ export const SAMPLE_MEMORIES = [
 ];
 
 // Helper functions for sample memory management
-export const isSampleMemory = (memory) => {
-  return memory.id?.startsWith('sample_');
-};
+export const isSampleMemory = (memory) => memory.id?.startsWith('sample_');
 
-export const filterOutSampleMemories = (memories) => {
-  return memories.filter(memory => !isSampleMemory(memory));
-};
+export const filterOutSampleMemories = (memories) => memories.filter(memory => !isSampleMemory(memory));
 
-export const addSampleMemoriesToExisting = (existingMemories) => {
-  return [...existingMemories, ...SAMPLE_MEMORIES];
-};
+export const addSampleMemoriesToExisting = (existingMemories) => [...existingMemories, ...SAMPLE_MEMORIES];

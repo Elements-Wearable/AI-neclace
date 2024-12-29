@@ -8,8 +8,7 @@ const THEME_ITEMS = [
   { id: THEME_OPTIONS.SYSTEM, label: 'System' },
 ];
 
-const ThemeModal = ({ visible, onClose, onSelect, currentTheme }) => {
-  return (
+const ThemeModal = ({ visible, onClose, onSelect, currentTheme }) => (
     <Modal
       visible={visible}
       transparent={true}
@@ -44,7 +43,6 @@ const ThemeModal = ({ visible, onClose, onSelect, currentTheme }) => {
       </View>
     </Modal>
   );
-};
 
 const styles = StyleSheet.create({
   modalContainer: {
