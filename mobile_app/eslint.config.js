@@ -1,4 +1,8 @@
 import js from '@eslint/js';
+import functionalPlugin from 'eslint-plugin-functional';
+import reactPlugin from 'eslint-plugin-react';
+import reactHooksPlugin from 'eslint-plugin-react-hooks';
+import reactNativePlugin from 'eslint-plugin-react-native';
 import globals from 'globals';
 
 export default [
@@ -19,10 +23,10 @@ export default [
       },
     },
     plugins: {
-      'react': await import('eslint-plugin-react'),
-      'react-native': await import('eslint-plugin-react-native'),
-      'react-hooks': await import('eslint-plugin-react-hooks'),
-      'functional': await import('eslint-plugin-functional'),
+      'react': reactPlugin,
+      'react-native': reactNativePlugin,
+      'react-hooks': reactHooksPlugin,
+      'functional': functionalPlugin,
     },
     settings: {
       react: {
