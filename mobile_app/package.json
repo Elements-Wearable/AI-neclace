@@ -36,16 +36,13 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@eslint/compat": "^1.2.4",
-    "@eslint/eslintrc": "^3.2.0",
-    "@eslint/js": "^9.17.0",
     "babel-plugin-module-resolver": "^5.0.0",
     "buffer": "^6.0.3",
+    "eslint": "^8.57.1",
     "eslint-plugin-functional": "^6.0.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-native": "^4.1.0",
-    "globals": "^15.14.0"
+    "eslint-plugin-react-native": "^4.1.0"
   },
   "private": true
 }
