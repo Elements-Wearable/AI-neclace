@@ -2,8 +2,7 @@ import React from 'react';
 import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SUPPORTED_LANGUAGES } from '../config/constants';
 
-const LanguageModal = ({ visible, onClose, onSelect, currentLanguage }) => {
-  return (
+const LanguageModal = ({ visible, onClose, onSelect, currentLanguage }) => (
     <Modal
       visible={visible}
       transparent={true}
@@ -38,7 +37,6 @@ const LanguageModal = ({ visible, onClose, onSelect, currentLanguage }) => {
       </View>
     </Modal>
   );
-};
 
 const styles = StyleSheet.create({
   modalContainer: {

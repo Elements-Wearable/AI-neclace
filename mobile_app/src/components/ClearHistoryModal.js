@@ -67,7 +67,7 @@ export default function ClearHistoryModal({ visible, onClose, onClear }) {
     };
 
     // Fill in middle dates
-    let currentDate = new Date(selectedRange.start);
+    const currentDate = new Date(selectedRange.start);
     while (currentDate < selectedRange.end) {
       currentDate.setDate(currentDate.getDate() + 1);
       const dateString = currentDate.toISOString().split('T')[0];
@@ -103,13 +103,11 @@ export default function ClearHistoryModal({ visible, onClose, onClear }) {
     }
   };
 
-  const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
+  const formatTime = (timestamp) => new Date(timestamp).toLocaleTimeString([], { 
       hour: '2-digit',
       minute: '2-digit',
       hour12: true
     });
-  };
 
   return (
     <Modal

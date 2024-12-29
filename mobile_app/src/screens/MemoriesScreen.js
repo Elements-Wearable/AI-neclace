@@ -57,10 +57,10 @@ const MemoriesScreen = () => {
       const newMemories = loadedMemories.filter(m => 
         m.status === MEMORY_STATUS.NEW && 
         m.state === MEMORY_STATES.PENDING
-      ).sort((a, b) => {
+      ).sort((a, b) => 
         // Sort by timestamp, newest first
-        return new Date(b.timestamp) - new Date(a.timestamp);
-      });
+         new Date(b.timestamp) - new Date(a.timestamp)
+      );
       setMemories(newMemories);
       setCurrentIndex(0);
     } catch (error) {
@@ -157,8 +157,7 @@ const MemoriesScreen = () => {
     );
   }
 
-  const renderEventCard = (event) => {
-    return (
+  const renderEventCard = (event) => (
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>{event.title}</Text>
@@ -182,10 +181,8 @@ const MemoriesScreen = () => {
         </View>
       </View>
     );
-  };
 
-  const renderMemoryCard = (memory) => {
-    return (
+  const renderMemoryCard = (memory) => (
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>{memory.title}</Text>
@@ -213,7 +210,6 @@ const MemoriesScreen = () => {
         </View>
       </View>
     );
-  };
 
   const renderCard = (memory, isTop) => {
     const memoryType = getMemoryType(memory);

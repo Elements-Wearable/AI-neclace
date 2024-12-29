@@ -23,14 +23,16 @@ export default function DevelopmentSettings({
     setVersionTaps(newCount);
     
     if (newCount === 5) {
-      logger.debug('Developer options unlocked');
-      Alert.alert('🎉 Developer Mode', 'You have unlocked developer options! \nWith Great power comes great responsibility');
-      updateSetting('debugMode', true);
-    } else if (newCount === 10) {
-      logger.debug('Developer options locked');
-      Alert.alert('Developer Mode Disabled', 'Developer options have been locked');
+      if (!settings.debugMode) {
+        logger.debug('Developer options unlocked');
+        Alert.alert('🎉 Developer Mode', 'Developer options enabled!');
+        updateSetting('debugMode', true);
+      } else {
+        logger.debug('Developer options locked');
+        Alert.alert('Developer Mode', 'Developer options disabled');
+        updateSetting('debugMode', false);
+      }
       setVersionTaps(0);
-      updateSetting('debugMode', false);
     }
   };
 
@@ -67,7 +69,7 @@ export default function DevelopmentSettings({
   return (
     <View>
       {/* Hidden development options */}
-      {versionTaps >= 5 && (
+      {settings.debugMode && (
         <>
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>Debug Mode</Text>
@@ -170,7 +172,9 @@ export default function DevelopmentSettings({
       {/* Version number always visible */}
       <View style={styles.settingRow}>
         <Text style={styles.settingLabel}>App Version</Text>
-        <Text style={[styles.selectorText, styles.exportText]}>{appJson.expo.version}</Text>
+        <TouchableOpacity style={[styles.selector, styles.exportSelector]} onPress={handleVersionPress}>
+          <Text style={[styles.selectorText, styles.exportText]}>{appJson.expo.version}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Logs Modal */}
