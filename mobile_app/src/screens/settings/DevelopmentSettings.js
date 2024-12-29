@@ -170,12 +170,7 @@ export default function DevelopmentSettings({
       {/* Version number always visible */}
       <View style={styles.settingRow}>
         <Text style={styles.settingLabel}>App Version</Text>
-        <TouchableOpacity
-          style={[styles.selector, styles.exportSelector]}
-          onPress={handleVersionPress}
-        >
-          <Text style={[styles.selectorText, styles.exportText]}>{appJson.expo.version}</Text>
-        </TouchableOpacity>
+        <Text style={[styles.selectorText, styles.exportText]}>{appJson.expo.version}</Text>
       </View>
 
       {/* Logs Modal */}

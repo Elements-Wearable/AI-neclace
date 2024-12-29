@@ -5,12 +5,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MEMORY_STATES, MEMORY_STATUS, MEMORY_TYPES, SWIPE_COLORS } from '../config/memoryConstants';
 import { getMemories, updateMemory } from '../services/memoriesStorage';
 
+// Helper function to check memory type
+const getMemoryType = (memory) => {
+  if (!memory?.type) return null;
+  return Object.values(MEMORY_TYPES).find(type => type.id === memory.type) || null;
+};
+
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = SCREEN_WIDTH * 0.8;
 
 const MemoriesScreen = () => {
   const [memories, setMemories] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isUpdating, setIsUpdating] = useState(false);
   const swipe = useRef(new Animated.ValueXY()).current;
 
   // Add interpolated color based on swipe direction
@@ -62,10 +69,15 @@ const MemoriesScreen = () => {
   };
 
   const handleSwipeComplete = async (direction) => {
+    // Prevent multiple swipes while updating
+    if (isUpdating || currentIndex >= memories.length) return;
+    
     const currentMemory = memories[currentIndex];
     const isAccepted = direction === 'right';
     
     try {
+      setIsUpdating(true);
+      
       // Update both state and status
       await updateMemory(currentMemory.id, {
         state: isAccepted ? MEMORY_STATES.ACCEPTED : MEMORY_STATES.REJECTED,
@@ -74,17 +86,25 @@ const MemoriesScreen = () => {
       });
       
       console.log(`Memory ${currentMemory.id} ${isAccepted ? 'accepted' : 'rejected'}`);
-      setCurrentIndex(currentIndex + 1);
+      
+      // Only increment if we still have memories and haven't moved on
+      if (currentIndex < memories.length) {
+        setCurrentIndex(currentIndex + 1);
+      }
     } catch (error) {
       console.error('Error updating memory:', error);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => !isUpdating, // Prevent pan responder while updating
       onPanResponderMove: (_, { dx, dy }) => {
-        swipe.setValue({ x: dx, y: dy });
+        if (!isUpdating) { // Only allow movement if not updating
+          swipe.setValue({ x: dx, y: dy });
+        }
       },
       onPanResponderRelease: (_, { dx, dy }) => {
         const direction = Math.sign(dx);
@@ -149,7 +169,7 @@ const MemoriesScreen = () => {
         <View style={styles.eventDetails}>
           <Text style={styles.eventTime}>
             {new Date(event.startDate).toLocaleString()} - 
-            {new Date(event.endDate).toLocaleTimeString()}
+            {new Date(event.endDate).toLocaleString()}
           </Text>
           {event.location?.placeName && (
             <Text style={styles.eventLocation}>📍 {event.location.placeName}</Text>
@@ -196,9 +216,11 @@ const MemoriesScreen = () => {
   };
 
   const renderCard = (memory, isTop) => {
+    const memoryType = getMemoryType(memory);
+    
     return (
       <View style={styles.card}>
-        {memory.type === MEMORY_TYPES.CALENDAR.id ? renderEventCard(memory) : renderMemoryCard(memory)}
+        {memoryType?.id === MEMORY_TYPES.CALENDAR.id ? renderEventCard(memory) : renderMemoryCard(memory)}
         
         {isTop && (
           <>
