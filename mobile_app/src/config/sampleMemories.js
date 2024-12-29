@@ -1,28 +1,25 @@
-import { MEMORY_STATES, MEMORY_TYPES } from './memoryConstants';
+import { MEMORY_STATES, MEMORY_STATUS, MEMORY_TYPES } from './memoryConstants';
 
 // Helper function to create sample memory
 const createSampleMemory = (id, type, data) => ({
   id: `sample_${id}`,
-  ...data,
-  type,
-  state: MEMORY_STATES.NEW,
-  reviewedAt: null,
-  isSample: true,
-  sampleMetadata: {
-    createdAt: new Date().toISOString(),
-    version: '1.0',
-    category: 'demo_content'
-  }
+  type: type.id,
+  state: MEMORY_STATES.PENDING,
+  status: MEMORY_STATUS.NEW,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  ...data
 });
 
 // Export sample memories with clear identification
 export const SAMPLE_MEMORIES = [
-  // Events
-  createSampleMemory('event_1', MEMORY_TYPES.EVENT, {
+  // Calendar Events
+  createSampleMemory('event_1', MEMORY_TYPES.CALENDAR, {
     title: 'Team Project Meeting',
     description: 'Weekly sync with the development team to discuss project progress',
-    startDate: new Date('2024-01-10T10:00:00'),
-    endDate: new Date('2024-01-10T11:00:00'),
+    startDate: new Date('2024-01-10T10:00:00').toISOString(),
+    endDate: new Date('2024-01-10T11:00:00').toISOString(),
+    timestamp: new Date('2024-01-10T10:00:00').toISOString(),
     location: {
       latitude: 37.7749,
       longitude: -122.4194,
@@ -33,16 +30,15 @@ export const SAMPLE_MEMORIES = [
     category: 'work',
     isRecurring: true,
     recurrenceRule: 'FREQ=WEEKLY;BYDAY=WE',
-    reminders: [15, 60], // 15 mins and 1 hour before
-    attachments: ['https://example.com/meeting-docs/agenda.pdf'],
-    status: 'confirmed'
+    reminders: [15, 60]
   }),
   
-  createSampleMemory('event_2', MEMORY_TYPES.EVENT, {
+  createSampleMemory('event_2', MEMORY_TYPES.CALENDAR, {
     title: 'Family Dinner',
     description: 'Monthly family gathering at Grandmas house',
-    startDate: new Date('2024-01-15T18:00:00'),
-    endDate: new Date('2024-01-15T21:00:00'),
+    startDate: new Date('2024-01-15T18:00:00').toISOString(),
+    endDate: new Date('2024-01-15T21:00:00').toISOString(),
+    timestamp: new Date('2024-01-15T18:00:00').toISOString(),
     location: {
       latitude: 37.7739,
       longitude: -122.4312,
@@ -53,16 +49,14 @@ export const SAMPLE_MEMORIES = [
     category: 'family',
     isRecurring: true,
     recurrenceRule: 'FREQ=MONTHLY;BYDAY=3SU',
-    reminders: [1440, 120], // 1 day and 2 hours before
-    attachments: [],
-    status: 'confirmed'
+    reminders: [1440, 120]
   }),
 
   // Memories
   createSampleMemory('memory_1', MEMORY_TYPES.MEMORY, {
     title: 'Peaceful Morning Reflection',
     content: 'Watched the sunrise from the hilltop today. The city was so quiet and peaceful. These moments of solitude help me find clarity.',
-    timestamp: new Date('2024-01-05T06:30:00'),
+    timestamp: new Date('2024-01-05T06:30:00').toISOString(),
     tags: ['reflection', 'peace', 'morning', 'nature'],
     mood: 'peaceful',
     location: {
@@ -70,7 +64,6 @@ export const SAMPLE_MEMORIES = [
       longitude: -122.4478,
       placeName: 'Twin Peaks Summit'
     },
-    attachments: ['https://example.com/photos/sunrise.jpg'],
     importance: 4,
     isPrivate: true
   }),
@@ -78,7 +71,7 @@ export const SAMPLE_MEMORIES = [
   createSampleMemory('memory_2', MEMORY_TYPES.MEMORY, {
     title: 'Creative Breakthrough',
     content: 'Finally solved that coding problem that was bothering me for days. Sometimes stepping away and coming back with fresh eyes makes all the difference.',
-    timestamp: new Date('2024-01-08T14:20:00'),
+    timestamp: new Date('2024-01-08T14:20:00').toISOString(),
     tags: ['coding', 'achievement', 'learning', 'work'],
     mood: 'accomplished',
     location: {
@@ -86,7 +79,6 @@ export const SAMPLE_MEMORIES = [
       longitude: -122.4065,
       placeName: 'Local Coffee Shop'
     },
-    attachments: [],
     importance: 3,
     isPrivate: false
   })
@@ -94,7 +86,7 @@ export const SAMPLE_MEMORIES = [
 
 // Helper functions for sample memory management
 export const isSampleMemory = (memory) => {
-  return memory.isSample === true || memory.id.startsWith('sample_');
+  return memory.id?.startsWith('sample_');
 };
 
 export const filterOutSampleMemories = (memories) => {
