@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useRef, useState } from 'react';
 import { Animated, Dimensions, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MEMORY_STATES, MEMORY_TYPES, SWIPE_COLORS } from '../config/memoryConstants';
+import { MEMORY_STATES, MEMORY_STATUS, MEMORY_TYPES, SWIPE_COLORS } from '../config/memoryConstants';
 import { getMemories, updateMemory } from '../services/memoriesStorage';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -31,16 +32,30 @@ const MemoriesScreen = () => {
     extrapolate: 'clamp',
   });
 
-  useEffect(() => {
-    loadMemories();
-  }, []);
+  // Load memories when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadMemories();
+      return () => {
+        // Reset current index when leaving screen
+        setCurrentIndex(0);
+      };
+    }, [])
+  );
 
   const loadMemories = async () => {
     try {
       const loadedMemories = await getMemories();
-      // Only show unreviewed memories
-      const newMemories = loadedMemories.filter(m => m.state === MEMORY_STATES.NEW);
+      // Show only new memories that are pending action
+      const newMemories = loadedMemories.filter(m => 
+        m.status === MEMORY_STATUS.NEW && 
+        m.state === MEMORY_STATES.PENDING
+      ).sort((a, b) => {
+        // Sort by timestamp, newest first
+        return new Date(b.timestamp) - new Date(a.timestamp);
+      });
       setMemories(newMemories);
+      setCurrentIndex(0);
     } catch (error) {
       console.error('Error loading memories:', error);
     }
@@ -51,9 +66,11 @@ const MemoriesScreen = () => {
     const isAccepted = direction === 'right';
     
     try {
+      // Update both state and status
       await updateMemory(currentMemory.id, {
         state: isAccepted ? MEMORY_STATES.ACCEPTED : MEMORY_STATES.REJECTED,
-        reviewedAt: Date.now()
+        status: MEMORY_STATUS.VIEWED,
+        updatedAt: new Date().toISOString()
       });
       
       console.log(`Memory ${currentMemory.id} ${isAccepted ? 'accepted' : 'rejected'}`);
@@ -181,7 +198,7 @@ const MemoriesScreen = () => {
   const renderCard = (memory, isTop) => {
     return (
       <View style={styles.card}>
-        {memory.type === MEMORY_TYPES.EVENT.id ? renderEventCard(memory) : renderMemoryCard(memory)}
+        {memory.type === MEMORY_TYPES.CALENDAR.id ? renderEventCard(memory) : renderMemoryCard(memory)}
         
         {isTop && (
           <>
