@@ -63,7 +63,8 @@
         {
           "filePermission": "Allows reading and writing files to the app's directory."
         }
-      ]
+      ],
+      "expo-sqlite"
     ]
   }
 }
