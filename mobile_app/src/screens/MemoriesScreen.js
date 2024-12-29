@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MEMORY_STATES, SWIPE_COLORS } from '../config/memoryConstants';
+import { MEMORY_STATES, MEMORY_TYPES, SWIPE_COLORS } from '../config/memoryConstants';
 import { getMemories, updateMemory } from '../services/memoriesStorage';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -120,14 +120,44 @@ const MemoriesScreen = () => {
     );
   }
 
-  const renderCard = (memory, isTop) => {
+  const renderEventCard = (event) => {
     return (
-      <View style={styles.card}>
+      <View style={styles.cardContent}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>{event.title}</Text>
+          <Text style={styles.cardType}>{event.category || 'Event'}</Text>
+        </View>
+        <Text style={styles.cardDescription}>{event.description}</Text>
+        
+        <View style={styles.eventDetails}>
+          <Text style={styles.eventTime}>
+            {new Date(event.startDate).toLocaleString()} - 
+            {new Date(event.endDate).toLocaleTimeString()}
+          </Text>
+          {event.location?.placeName && (
+            <Text style={styles.eventLocation}>📍 {event.location.placeName}</Text>
+          )}
+          {event.attendees?.length > 0 && (
+            <Text style={styles.eventAttendees}>
+              👥 {event.attendees.length} attendees
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderMemoryCard = (memory) => {
+    return (
+      <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>{memory.title}</Text>
-          <Text style={styles.cardType}>{memory.type}</Text>
+          <View style={styles.memoryMood}>
+            <Text style={styles.moodText}>{memory.mood}</Text>
+          </View>
         </View>
-        <Text style={styles.cardContent}>{memory.content}</Text>
+        <Text style={styles.cardDescription}>{memory.content}</Text>
+        
         {memory.tags && (
           <View style={styles.tagContainer}>
             {memory.tags.map((tag, index) => (
@@ -135,9 +165,23 @@ const MemoriesScreen = () => {
             ))}
           </View>
         )}
-        <Text style={styles.timestamp}>
-          {new Date(memory.timestamp).toLocaleDateString()}
-        </Text>
+        
+        <View style={styles.memoryDetails}>
+          <Text style={styles.timestamp}>
+            {new Date(memory.timestamp).toLocaleString()}
+          </Text>
+          {memory.location?.placeName && (
+            <Text style={styles.memoryLocation}>📍 {memory.location.placeName}</Text>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderCard = (memory, isTop) => {
+    return (
+      <View style={styles.card}>
+        {memory.type === MEMORY_TYPES.EVENT.id ? renderEventCard(memory) : renderMemoryCard(memory)}
         
         {isTop && (
           <>
@@ -221,16 +265,20 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  cardContent: {
+    flex: 1,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   cardTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     flex: 1,
+    marginRight: 10,
   },
   cardType: {
     fontSize: 14,
@@ -240,15 +288,48 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
   },
-  cardContent: {
+  cardDescription: {
     fontSize: 16,
-    marginBottom: 15,
+    color: '#333',
+    marginBottom: 20,
     flex: 1,
+  },
+  eventDetails: {
+    marginTop: 'auto',
+    gap: 8,
+  },
+  eventTime: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  eventLocation: {
+    fontSize: 14,
+    color: '#666',
+  },
+  eventAttendees: {
+    fontSize: 14,
+    color: '#666',
+  },
+  memoryDetails: {
+    marginTop: 'auto',
+    gap: 8,
+  },
+  memoryMood: {
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  moodText: {
+    color: '#6200ee',
+    fontSize: 14,
+    fontWeight: '500',
   },
   tagContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   tag: {
     fontSize: 14,
@@ -257,11 +338,12 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   timestamp: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#666',
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
+  },
+  memoryLocation: {
+    fontSize: 14,
+    color: '#666',
   },
   noMemoriesText: {
     fontSize: 18,

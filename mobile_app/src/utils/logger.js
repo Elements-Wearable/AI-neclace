@@ -53,6 +53,11 @@ class Logger {
     await this.init();
     
     try {
+      // Ensure we have a log file
+      if (!this.logFilePath) {
+        await this.createNewLogFile();
+      }
+      
       // Append to current file
       await FileSystem.writeAsStringAsync(
         this.logFilePath,
