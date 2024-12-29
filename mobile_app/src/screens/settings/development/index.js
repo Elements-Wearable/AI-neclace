@@ -56,9 +56,7 @@ export default function DevelopmentSettings({
             manageSampleMemories={manageSampleMemories}
           />
           <DatabaseExport getAllAsyncStorageData={getAllAsyncStorageData} />
-          {settings.debugMode && (
-            <LogExport loadAvailableLogs={loadAvailableLogs} />
-          )}
+          <LogExport loadAvailableLogs={loadAvailableLogs} />
         </>
       )}
       <VersionDisplay onPress={handleVersionPress} />
