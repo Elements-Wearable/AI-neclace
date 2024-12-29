@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import logger from '../../../utils/logger';
 import LogFilesModal from '../LogFilesModal';
 import DatabaseExport from './DatabaseExport';
