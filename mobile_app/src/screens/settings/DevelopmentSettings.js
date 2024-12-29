@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import React, { useState } from 'react';
 import { Alert, Modal, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import appJson from '../../../app.json';
 import logger from '../../utils/logger';
 import styles from './styles';
 
@@ -10,7 +11,8 @@ export default function DevelopmentSettings({
   generateSampleData,
   clearSampleData,
   getAllAsyncStorageData,
-  updateSetting
+  updateSetting,
+  manageSampleMemories
 }) {
   const [versionTaps, setVersionTaps] = useState(0);
   const [showLogsModal, setShowLogsModal] = useState(false);
@@ -23,6 +25,12 @@ export default function DevelopmentSettings({
     if (newCount === 5) {
       logger.debug('Developer options unlocked');
       Alert.alert('🎉 Developer Mode', 'You have unlocked developer options! \nWith Great power comes great responsibility');
+      updateSetting('debugMode', true);
+    } else if (newCount === 10) {
+      logger.debug('Developer options locked');
+      Alert.alert('Developer Mode Disabled', 'Developer options have been locked');
+      setVersionTaps(0);
+      updateSetting('debugMode', false);
     }
   };
 
@@ -57,9 +65,7 @@ export default function DevelopmentSettings({
   };
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Development</Text>
-
+    <View>
       {/* Hidden development options */}
       {versionTaps >= 5 && (
         <>
@@ -70,11 +76,9 @@ export default function DevelopmentSettings({
               onValueChange={async (value) => {
                 try {
                   if (value) {
-                    // Create new log file when enabling debug mode
                     await logger.createNewLogFile();
                     logger.debug('Debug mode enabled');
                   } else {
-                    // Close current log file when disabling debug mode
                     logger.debug('Debug mode disabled');
                     await logger.closeCurrentLogFile();
                   }
@@ -88,7 +92,7 @@ export default function DevelopmentSettings({
           </View>
 
           <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Add Sample Data</Text>
+            <Text style={styles.settingLabel}>Add Sample Transcripts</Text>
             <TouchableOpacity
               style={[styles.selector, styles.exportSelector]}
               onPress={generateSampleData}
@@ -98,10 +102,30 @@ export default function DevelopmentSettings({
           </View>
 
           <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Clear Sample Data</Text>
+            <Text style={styles.settingLabel}>Clear Sample Transcripts</Text>
             <TouchableOpacity
               style={[styles.selector, styles.dangerSelector]}
               onPress={clearSampleData}
+            >
+              <Text style={[styles.selectorText, styles.dangerText]}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Add Sample Memories</Text>
+            <TouchableOpacity
+              style={[styles.selector, styles.exportSelector]}
+              onPress={() => manageSampleMemories('add')}
+            >
+              <Text style={[styles.selectorText, styles.exportText]}>Generate</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Clear Sample Memories</Text>
+            <TouchableOpacity
+              style={[styles.selector, styles.dangerSelector]}
+              onPress={() => manageSampleMemories('remove')}
             >
               <Text style={[styles.selectorText, styles.dangerText]}>Clear</Text>
             </TouchableOpacity>
@@ -140,138 +164,136 @@ export default function DevelopmentSettings({
               <Text style={[styles.selectorText, styles.exportText]}>View Logs</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Logs Modal */}
-          <Modal
-            visible={showLogsModal}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={() => setShowLogsModal(false)}
-          >
-            <View style={styles.modalContainer}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Debug Logs</Text>
-                
-                <View style={styles.searchContainer}>
-                  <Text style={styles.logCount}>
-                    {availableLogs.length} log file{availableLogs.length !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-
-                <ScrollView 
-                  style={styles.logsList}
-                  showsVerticalScrollIndicator={true}
-                  contentContainerStyle={styles.logsListContent}
-                >
-                  {availableLogs.length === 0 ? (
-                    <Text style={styles.emptyText}>No log files available</Text>
-                  ) : (
-                    availableLogs.map((log) => (
-                      <TouchableOpacity
-                        key={log.name}
-                        style={styles.logItem}
-                        onPress={() => {
-                          Alert.alert(
-                            'Log Preview',
-                            log.preview,
-                            [
-                              { text: 'Share', onPress: () => shareLog(log) },
-                              { text: 'Cancel', style: 'cancel' }
-                            ]
-                          );
-                        }}
-                      >
-                        <View style={styles.logInfo}>
-                          <Text style={styles.logDate}>
-                            {new Date(log.date).toLocaleDateString()}
-                          </Text>
-                          <Text style={styles.logTime}>
-                            {new Date(log.startTime).toLocaleTimeString()} - {new Date(log.endTime).toLocaleTimeString()}
-                          </Text>
-                          <Text style={styles.logDetails}>
-                            {log.lines} entries • {(log.size / 1024).toFixed(1)} KB
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          style={[styles.selector, styles.exportSelector, styles.smallButton]}
-                          onPress={() => shareLog(log)}
-                        >
-                          <Text style={[styles.selectorText, styles.exportText]}>Share</Text>
-                        </TouchableOpacity>
-                      </TouchableOpacity>
-                    ))
-                  )}
-                </ScrollView>
-
-                <View style={styles.modalButtons}>
-                  {availableLogs.length > 0 && (
-                    <>
-                      <TouchableOpacity
-                        style={[styles.modalButton, styles.exportButton]}
-                        onPress={shareAllLogs}
-                      >
-                        <View style={styles.modalButtonContent}>
-                          <Text style={styles.modalButtonText}>Share All</Text>
-                          <Text style={styles.modalButtonCount}>({availableLogs.length})</Text>
-                        </View>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.modalButton, styles.dangerButton]}
-                        onPress={() => {
-                          Alert.alert(
-                            'Delete All Logs',
-                            'Are you sure you want to delete all log files?',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              { 
-                                text: 'Delete',
-                                style: 'destructive',
-                                onPress: async () => {
-                                  try {
-                                    const logsDir = `${FileSystem.documentDirectory}logs/`;
-                                    await FileSystem.deleteAsync(logsDir, { idempotent: true });
-                                    await FileSystem.makeDirectoryAsync(logsDir, { intermediates: true });
-                                    setAvailableLogs([]);
-                                    Alert.alert('Success', 'All log files deleted');
-                                  } catch (error) {
-                                    logger.error('Failed to delete log files:', error);
-                                    Alert.alert('Error', 'Failed to delete log files');
-                                  }
-                                }
-                              }
-                            ]
-                          );
-                        }}
-                      >
-                        <Text style={styles.modalButtonText}>Delete All</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                  <TouchableOpacity
-                    style={styles.modalButton}
-                    onPress={() => setShowLogsModal(false)}
-                  >
-                    <Text style={styles.modalButtonText}>Close</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
         </>
       )}
 
-      {/* Version number always visible at bottom */}
+      {/* Version number always visible */}
       <View style={styles.settingRow}>
         <Text style={styles.settingLabel}>App Version</Text>
         <TouchableOpacity
-          style={styles.selector}
+          style={[styles.selector, styles.exportSelector]}
           onPress={handleVersionPress}
         >
-          <Text style={styles.selectorText}>
-            {require('../../../app.json').expo.version}
-          </Text>
+          <Text style={[styles.selectorText, styles.exportText]}>{appJson.expo.version}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Logs Modal */}
+      <Modal
+        visible={showLogsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowLogsModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Debug Logs</Text>
+            
+            <View style={styles.searchContainer}>
+              <Text style={styles.logCount}>
+                {availableLogs.length} log file{availableLogs.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+
+            <ScrollView 
+              style={styles.logsList}
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={styles.logsListContent}
+            >
+              {availableLogs.length === 0 ? (
+                <Text style={styles.emptyText}>No log files available</Text>
+              ) : (
+                availableLogs.map((log) => (
+                  <TouchableOpacity
+                    key={log.name}
+                    style={styles.logItem}
+                    onPress={() => {
+                      Alert.alert(
+                        'Log Preview',
+                        log.preview,
+                        [
+                          { text: 'Share', onPress: () => shareLog(log) },
+                          { text: 'Cancel', style: 'cancel' }
+                        ]
+                      );
+                    }}
+                  >
+                    <View style={styles.logInfo}>
+                      <Text style={styles.logDate}>
+                        {new Date(log.date).toLocaleDateString()}
+                      </Text>
+                      <Text style={styles.logTime}>
+                        {new Date(log.startTime).toLocaleTimeString()} - {new Date(log.endTime).toLocaleTimeString()}
+                      </Text>
+                      <Text style={styles.logDetails}>
+                        {log.lines} entries • {(log.size / 1024).toFixed(1)} KB
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.selector, styles.exportSelector, styles.smallButton]}
+                      onPress={() => shareLog(log)}
+                    >
+                      <Text style={[styles.selectorText, styles.exportText]}>Share</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+
+            <View style={styles.modalButtons}>
+              {availableLogs.length > 0 && (
+                <>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.exportButton]}
+                    onPress={shareAllLogs}
+                  >
+                    <View style={styles.modalButtonContent}>
+                      <Text style={styles.modalButtonText}>Share All</Text>
+                      <Text style={styles.modalButtonCount}>({availableLogs.length})</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.dangerButton]}
+                    onPress={() => {
+                      Alert.alert(
+                        'Delete All Logs',
+                        'Are you sure you want to delete all log files?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { 
+                            text: 'Delete',
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                const logsDir = `${FileSystem.documentDirectory}logs/`;
+                                await FileSystem.deleteAsync(logsDir, { idempotent: true });
+                                await FileSystem.makeDirectoryAsync(logsDir, { intermediates: true });
+                                setAvailableLogs([]);
+                                Alert.alert('Success', 'All log files deleted');
+                              } catch (error) {
+                                logger.error('Failed to delete log files:', error);
+                                Alert.alert('Error', 'Failed to delete log files');
+                              }
+                            }
+                          }
+                        ]
+                      );
+                    }}
+                  >
+                    <Text style={styles.modalButtonText}>Delete All</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => setShowLogsModal(false)}
+              >
+                <Text style={styles.modalButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 } 

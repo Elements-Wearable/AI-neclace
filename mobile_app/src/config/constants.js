@@ -2,6 +2,7 @@
 export const SETTINGS_KEY = '@app_settings';
 export const TRANSCRIPTIONS_KEY = '@transcriptions';
 export const SUMMARIES_KEY = '@voice_notes_summaries';
+export const MEMORIES_STORAGE_KEY = '@memories';
 
 // API Keys
 export const DEEPGRAM_API_KEY = 'e59012aa2b98ab54218c21d9aefbb06fa58b5fb5';
@@ -43,6 +44,6 @@ export const defaultSettings = {
   autoPunctuation: true,
   showTabLabels: true,
   tabBarAnimation: true,
-  theme: THEME_OPTIONS.SYSTEM, // Add default theme setting
+  theme: THEME_OPTIONS.SYSTEM,
   debugMode: false,
 }; 
