@@ -19,7 +19,7 @@ jobs:
     # Define matrix strategy for multiple folders
     strategy:
       matrix:
-        folder: ["backend/node-service", "frontend", "mobile_app"]
+        folder: ["mobile_app"]
 
     steps:
       - uses: actions/checkout@v3

@@ -1,13 +1,9 @@
 import { MEMORY_STATES, MEMORY_TYPES } from './memoryConstants';
 
 // Helper function to create sample memory
-const createSampleMemory = (id, title, content, type, timestamp, tags) => ({
+const createSampleMemory = (id, type, data) => ({
   id: `sample_${id}`,
-  title: `[SAMPLE] ${title}`,
-  content,
-  timestamp: new Date(timestamp).getTime(),
-  tags: [...tags, 'sample_memory'],
-  imageUrl: `https://example.com/${id}.jpg`,
+  ...data,
   type,
   state: MEMORY_STATES.NEW,
   reviewedAt: null,
@@ -21,46 +17,79 @@ const createSampleMemory = (id, title, content, type, timestamp, tags) => ({
 
 // Export sample memories with clear identification
 export const SAMPLE_MEMORIES = [
-  createSampleMemory(
-    'college_1',
-    'First Day at College',
-    'Met amazing people and felt so excited about the new chapter in my life. The campus was beautiful in autumn.',
-    MEMORY_TYPES.EVENT,
-    '2023-09-01',
-    ['college', 'beginnings', 'friends']
-  ),
-  createSampleMemory(
-    'beach_1',
-    'Summer Beach Trip',
-    'Perfect day at the beach with crystal clear water. Built sandcastles and watched the sunset.',
-    MEMORY_TYPES.TRAVEL,
-    '2023-07-15',
-    ['summer', 'beach', 'sunset']
-  ),
-  createSampleMemory(
-    'family_1',
-    'Family Reunion',
-    'Finally got to see everyone after so long. Grandma made her famous apple pie.',
-    MEMORY_TYPES.RELATIONSHIP,
-    '2023-12-25',
-    ['family', 'holidays', 'food']
-  ),
-  createSampleMemory(
-    'achievement_1',
-    'First Marathon',
-    'Completed my first marathon! The training paid off, and the feeling at the finish line was incredible.',
-    MEMORY_TYPES.ACHIEVEMENT,
-    '2023-10-10',
-    ['achievement', 'running', 'fitness']
-  ),
-  createSampleMemory(
-    'travel_1',
-    'Road Trip Adventure',
-    'Spontaneous road trip with best friends. Found amazing hidden spots and made unforgettable memories.',
-    MEMORY_TYPES.TRAVEL,
-    '2023-08-20',
-    ['travel', 'friends', 'adventure']
-  )
+  // Events
+  createSampleMemory('event_1', MEMORY_TYPES.EVENT, {
+    title: 'Team Project Meeting',
+    description: 'Weekly sync with the development team to discuss project progress',
+    startDate: new Date('2024-01-10T10:00:00'),
+    endDate: new Date('2024-01-10T11:00:00'),
+    location: {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      placeName: 'Office Conference Room A',
+      address: '123 Business St, San Francisco, CA 94105'
+    },
+    attendees: ['john@example.com', 'sarah@example.com', 'mike@example.com'],
+    category: 'work',
+    isRecurring: true,
+    recurrenceRule: 'FREQ=WEEKLY;BYDAY=WE',
+    reminders: [15, 60], // 15 mins and 1 hour before
+    attachments: ['https://example.com/meeting-docs/agenda.pdf'],
+    status: 'confirmed'
+  }),
+  
+  createSampleMemory('event_2', MEMORY_TYPES.EVENT, {
+    title: 'Family Dinner',
+    description: 'Monthly family gathering at Grandmas house',
+    startDate: new Date('2024-01-15T18:00:00'),
+    endDate: new Date('2024-01-15T21:00:00'),
+    location: {
+      latitude: 37.7739,
+      longitude: -122.4312,
+      placeName: 'Grandmas House',
+      address: '456 Family Lane, San Francisco, CA 94110'
+    },
+    attendees: ['mom', 'dad', 'sister', 'grandma', 'uncle_bob'],
+    category: 'family',
+    isRecurring: true,
+    recurrenceRule: 'FREQ=MONTHLY;BYDAY=3SU',
+    reminders: [1440, 120], // 1 day and 2 hours before
+    attachments: [],
+    status: 'confirmed'
+  }),
+
+  // Memories
+  createSampleMemory('memory_1', MEMORY_TYPES.MEMORY, {
+    title: 'Peaceful Morning Reflection',
+    content: 'Watched the sunrise from the hilltop today. The city was so quiet and peaceful. These moments of solitude help me find clarity.',
+    timestamp: new Date('2024-01-05T06:30:00'),
+    tags: ['reflection', 'peace', 'morning', 'nature'],
+    mood: 'peaceful',
+    location: {
+      latitude: 37.7569,
+      longitude: -122.4478,
+      placeName: 'Twin Peaks Summit'
+    },
+    attachments: ['https://example.com/photos/sunrise.jpg'],
+    importance: 4,
+    isPrivate: true
+  }),
+
+  createSampleMemory('memory_2', MEMORY_TYPES.MEMORY, {
+    title: 'Creative Breakthrough',
+    content: 'Finally solved that coding problem that was bothering me for days. Sometimes stepping away and coming back with fresh eyes makes all the difference.',
+    timestamp: new Date('2024-01-08T14:20:00'),
+    tags: ['coding', 'achievement', 'learning', 'work'],
+    mood: 'accomplished',
+    location: {
+      latitude: 37.7858,
+      longitude: -122.4065,
+      placeName: 'Local Coffee Shop'
+    },
+    attachments: [],
+    importance: 3,
+    isPrivate: false
+  })
 ];
 
 // Helper functions for sample memory management
