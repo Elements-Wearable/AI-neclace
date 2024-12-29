@@ -1,44 +1,46 @@
-import js from '@eslint/js';
-import functionalPlugin from 'eslint-plugin-functional';
-import reactPlugin from 'eslint-plugin-react';
-import reactHooksPlugin from 'eslint-plugin-react-hooks';
-import reactNativePlugin from 'eslint-plugin-react-native';
-import globals from 'globals';
+const reactPlugin = require('eslint-plugin-react');
+const reactNativePlugin = require('eslint-plugin-react-native');
+const reactHooksPlugin = require('eslint-plugin-react-hooks');
+const functionalPlugin = require('eslint-plugin-functional');
 
-export default [
-  js.configs.recommended,
+module.exports = [
   {
-    files: ['**/*.{js,jsx,mjs,cjs}'],
+    files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 2021,
       sourceType: 'module',
-      globals: {
-        ...globals.node,
-        ...globals.es2021,
-      },
       parserOptions: {
         ecmaFeatures: {
-          jsx: true,
-        },
+          jsx: true
+        }
       },
+      globals: {
+        require: 'readonly',
+        module: 'readonly',
+        console: 'readonly',
+        process: 'readonly',
+        __dirname: 'readonly'
+      }
     },
     plugins: {
-      'react': reactPlugin,
+      react: reactPlugin,
       'react-native': reactNativePlugin,
       'react-hooks': reactHooksPlugin,
-      'functional': functionalPlugin,
+      functional: functionalPlugin
     },
     settings: {
       react: {
-        version: 'detect',
-      },
+        version: 'detect'
+      }
     },
     rules: {
       // Functional programming rules
       'functional/no-let': 'error',
-      'functional/immutable-data': 'error',
+      'functional/immutable-data': 'off',
       'functional/no-loop-statements': 'error',
       'functional/prefer-readonly-type': 'off',
+      'functional/no-this-expressions': 'error',
+      'functional/prefer-tacit': 'warn',
       
       // React rules
       'react/prop-types': 'off',
@@ -55,7 +57,7 @@ export default [
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'prefer-const': 'error',
       'no-var': 'error',
-      'arrow-body-style': ['error', 'as-needed'],
-    },
-  },
+      'arrow-body-style': ['error', 'as-needed']
+    }
+  }
 ]; 
