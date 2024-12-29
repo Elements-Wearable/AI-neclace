@@ -17,22 +17,18 @@ export default function DevelopmentSettings({
   const [versionTaps, setVersionTaps] = useState(0);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [availableLogs, setAvailableLogs] = useState([]);
+  const [showDevMenu, setShowDevMenu] = useState(false);
 
   const handleVersionPress = () => {
     const newCount = versionTaps + 1;
     setVersionTaps(newCount);
     
     if (newCount === 5) {
-      if (!settings.debugMode) {
-        logger.debug('Developer options unlocked');
-        Alert.alert('🎉 Developer Mode', 'Developer options enabled!');
-        updateSetting('debugMode', true);
-      } else {
-        logger.debug('Developer options locked');
-        Alert.alert('Developer Mode', 'Developer options disabled');
-        updateSetting('debugMode', false);
-      }
+      setShowDevMenu(true);
       setVersionTaps(0);
+      updateSetting('debugMode', false);
+      logger.debug('Developer options unlocked');
+      Alert.alert('🎉 Developer Mode', 'Developer options enabled!');
     }
   };
 
@@ -68,8 +64,8 @@ export default function DevelopmentSettings({
 
   return (
     <View>
-      {/* Hidden development options */}
-      {settings.debugMode && (
+      {/* Development menu - Only visible after 5 taps */}
+      {showDevMenu && (
         <>
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>Debug Mode</Text>
@@ -157,15 +153,18 @@ export default function DevelopmentSettings({
             </TouchableOpacity>
           </View>
 
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Export Logs</Text>
-            <TouchableOpacity
-              style={[styles.selector, styles.exportSelector]}
-              onPress={loadAvailableLogs}
-            >
-              <Text style={[styles.selectorText, styles.exportText]}>View Logs</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Debug-related features - Only visible when debug mode is enabled */}
+          {settings.debugMode && (
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Export Logs</Text>
+              <TouchableOpacity
+                style={[styles.selector, styles.exportSelector]}
+                onPress={loadAvailableLogs}
+              >
+                <Text style={[styles.selectorText, styles.exportText]}>View Logs</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </>
       )}
 
@@ -250,36 +249,6 @@ export default function DevelopmentSettings({
                       <Text style={styles.modalButtonText}>Share All</Text>
                       <Text style={styles.modalButtonCount}>({availableLogs.length})</Text>
                     </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.dangerButton]}
-                    onPress={() => {
-                      Alert.alert(
-                        'Delete All Logs',
-                        'Are you sure you want to delete all log files?',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          { 
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: async () => {
-                              try {
-                                const logsDir = `${FileSystem.documentDirectory}logs/`;
-                                await FileSystem.deleteAsync(logsDir, { idempotent: true });
-                                await FileSystem.makeDirectoryAsync(logsDir, { intermediates: true });
-                                setAvailableLogs([]);
-                                Alert.alert('Success', 'All log files deleted');
-                              } catch (error) {
-                                logger.error('Failed to delete log files:', error);
-                                Alert.alert('Error', 'Failed to delete log files');
-                              }
-                            }
-                          }
-                        ]
-                      );
-                    }}
-                  >
-                    <Text style={styles.modalButtonText}>Delete All</Text>
                   </TouchableOpacity>
                 </>
               )}
