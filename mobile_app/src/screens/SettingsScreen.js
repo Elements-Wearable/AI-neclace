@@ -1,24 +1,24 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import LanguageModal from '../components/LanguageModal';
 import MaxSpeakersModal from '../components/MaxSpeakersModal';
 import ThemeModal from '../components/ThemeModal';
 import {
-    MEMORIES_STORAGE_KEY,
-    SETTINGS_KEY, SUPPORTED_LANGUAGES,
-    THEME_OPTIONS,
-    TRANSCRIPTIONS_KEY
+  MEMORIES_STORAGE_KEY,
+  SETTINGS_KEY, SUPPORTED_LANGUAGES,
+  THEME_OPTIONS,
+  TRANSCRIPTIONS_KEY
 } from '../config/constants';
 import { SAMPLE_CONVERSATIONS } from '../config/sampleData';
 import { addSampleMemoriesToExisting, filterOutSampleMemories } from '../config/sampleMemories';
