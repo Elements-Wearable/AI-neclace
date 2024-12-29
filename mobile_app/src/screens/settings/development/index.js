@@ -26,11 +26,11 @@ export default function DevelopmentSettings({
     setVersionTaps(newCount);
     
     if (newCount === 5) {
-      setShowDevMenu(true);
+      setShowDevMenu(!showDevMenu);
       setVersionTaps(0);
       updateSetting('debugMode', false);
-      logger.debug('Developer options unlocked');
-      Alert.alert('🎉 Developer Mode', 'Developer options enabled!');
+      logger.debug(showDevMenu ? 'Developer options disabled' : 'Developer options enabled');
+      Alert.alert('🎉 Developer Mode', showDevMenu ? 'Developer options disabled!' : 'Developer options enabled!');
     }
   };
 
