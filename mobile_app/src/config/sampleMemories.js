@@ -21,7 +21,7 @@ export const SAMPLE_MEMORIES = [
       longitude: -122.4478,
       placeName: 'Twin Peaks Summit'
     },
-    attendees: ['John Smith']
+    attendees: 1
   }),
 
   createSampleMemory('memory_2', MEMORY_TYPES.MEMORY, {
@@ -33,7 +33,7 @@ export const SAMPLE_MEMORIES = [
       longitude: -122.4065,
       placeName: 'Local Coffee Shop'
     },
-    attendees: ['John Smith', 'Sarah Johnson']
+    attendees: 2
   }),
 
   // Event type samples
@@ -46,7 +46,7 @@ export const SAMPLE_MEMORIES = [
       longitude: -122.4194,
       placeName: 'Office Conference Room A'
     },
-    attendees: ['john@example.com', 'sarah@example.com', 'mike@example.com']
+    attendees: 3
   }),
 
   createSampleMemory('event_2', MEMORY_TYPES.EVENT, {
@@ -58,7 +58,7 @@ export const SAMPLE_MEMORIES = [
       longitude: -122.4312,
       placeName: 'Grandmas House'
     },
-    attendees: ['mom', 'dad', 'sister', 'grandma', 'uncle_bob']
+    attendees: 5
   })
 ];
 

@@ -173,9 +173,9 @@ const MemoriesScreen = () => {
         {memory.geolocation?.placeName && (
           <Text style={styles.memoryLocation}>📍 {memory.geolocation.placeName}</Text>
         )}
-        {memory.attendees?.length > 0 && (
+        {memory.attendees > 0 && (
           <Text style={styles.attendees}>
-            👥 {memory.attendees.join(', ')}
+            👥 {memory.attendees} {memory.attendees === 1 ? 'person' : 'people'}
           </Text>
         )}
       </View>

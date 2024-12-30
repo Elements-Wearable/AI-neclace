@@ -95,6 +95,7 @@ export const addSampleMemories = async () => {
     // Add new sample memories
     const updatedMemories = [...realMemories, ...SAMPLE_MEMORIES];
     await AsyncStorage.setItem(MEMORIES_KEY, JSON.stringify(updatedMemories));
+    console.log('Added sample memories:', SAMPLE_MEMORIES.length);
     return updatedMemories;
   } catch (error) {
     console.error('Error adding sample memories:', error);
@@ -104,8 +105,16 @@ export const addSampleMemories = async () => {
 
 export const clearSampleMemories = async () => {
   try {
+    console.log('Starting to clear sample memories...');
     const memories = await getMemories();
+    console.log('Total memories before clearing:', memories.length);
+    
+    // Filter out all memories that have "SAMPLE:" in their title
     const realMemories = memories.filter(m => !isSampleMemory(m));
+    console.log('Memories after filtering out samples:', realMemories.length);
+    console.log('Sample memories removed:', memories.length - realMemories.length);
+    
+    // Save back only the real memories
     await AsyncStorage.setItem(MEMORIES_KEY, JSON.stringify(realMemories));
     return realMemories;
   } catch (error) {
