@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useState } from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Dimensions, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TinderCard from 'react-tinder-card';
 import { MEMORY_STATES, MEMORY_STATUS, MEMORY_TYPES } from '../config/memoryConstants';
@@ -17,6 +17,48 @@ const CARD_WIDTH = SCREEN_WIDTH * 0.8;
 
 const MemoriesScreen = () => {
   const [memories, setMemories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [swipeDirection, setSwipeDirection] = useState(null);
+  
+  // Animation values for hint opacity
+  const leftOpacity = useRef(new Animated.Value(0.4)).current;
+  const rightOpacity = useRef(new Animated.Value(0.4)).current;
+  const downOpacity = useRef(new Animated.Value(0.4)).current;
+
+  const animateHint = (direction) => {
+    // Reset all opacities
+    Animated.parallel([
+      Animated.timing(leftOpacity, {
+        toValue: 0.4,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(rightOpacity, {
+        toValue: 0.4,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(downOpacity, {
+        toValue: 0.4,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Animate the active direction
+    const activeOpacity = direction === 'left' ? leftOpacity : 
+                         direction === 'right' ? rightOpacity : 
+                         direction === 'down' ? downOpacity : null;
+    
+    if (activeOpacity) {
+      Animated.timing(activeOpacity, {
+        toValue: 0.8,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
 
   // Load memories when screen comes into focus
   useFocusEffect(
@@ -27,11 +69,13 @@ const MemoriesScreen = () => {
 
   const loadMemories = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
       const loadedMemories = await getMemories();
       console.log('Loaded memories:', loadedMemories.length);
       // Show only unreviewed memories (not accepted, rejected, or skipped)
       const newMemories = loadedMemories.filter(m => 
-        m.state === MEMORY_STATES.NEW
+        m.state === MEMORY_STATES.NEW && m.type && Object.values(MEMORY_TYPES).some(type => type.id === m.type)
       ).sort((a, b) => 
         // Sort by datetime, newest first
         new Date(b.datetime) - new Date(a.datetime)
@@ -40,28 +84,30 @@ const MemoriesScreen = () => {
       setMemories(newMemories);
     } catch (error) {
       console.error('Error loading memories:', error);
+      setError('Failed to load memories');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSwipe = async (direction, memory) => {
-    let newState, newStatus;
-    
-    switch(direction) {
-      case 'right':
-        newState = MEMORY_STATES.REVIEWED;
-        newStatus = MEMORY_STATUS.ACCEPTED;
-        break;
-      case 'left':
-        newState = MEMORY_STATES.REVIEWED;
-        newStatus = MEMORY_STATUS.REJECTED;
-        break;
-      case 'down':
-        newState = MEMORY_STATES.SKIPPED;
-        newStatus = MEMORY_STATUS.NEW;
-        break;
-      default:
-        return;
-    }
+    const [newState, newStatus] = (() => {
+      switch(direction) {
+        case 'right':
+          return [MEMORY_STATES.REVIEWED, MEMORY_STATUS.ACCEPTED];
+        case 'left':
+          return [MEMORY_STATES.REVIEWED, MEMORY_STATUS.REJECTED];
+        case 'down':
+          return [MEMORY_STATES.SKIPPED, MEMORY_STATUS.NEW];
+        default:
+          return [null, null];
+      }
+    })();
+
+    if (!newState || !newStatus) return;
+
+    // Optimistically update UI
+    setMemories(prevMemories => prevMemories.filter(m => m.id !== memory.id));
 
     try {
       await updateMemory(memory.id, {
@@ -74,10 +120,14 @@ const MemoriesScreen = () => {
       
     } catch (error) {
       console.error('Error updating memory:', error);
+      // Revert optimistic update on error
+      setMemories(prevMemories => [...prevMemories, memory]);
+      setError('Failed to update memory');
     }
   };
 
   const onCardLeftScreen = (direction, memory) => {
+    // Only remove card if it wasn't already removed by handleSwipe
     setMemories(prevMemories => prevMemories.filter(m => m.id !== memory.id));
   };
 
@@ -109,31 +159,62 @@ const MemoriesScreen = () => {
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.cardContainer}>
-          {memories.length === 0 ? (
+          {isLoading ? (
+            <ActivityIndicator size="large" color="#0000ff" />
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.retryText} onPress={loadMemories}>Tap to retry</Text>
+            </View>
+          ) : memories.length === 0 ? (
             <Text style={styles.noMemoriesText}>No more memories to review</Text>
           ) : (
             <View style={styles.cardsWrapper}>
-              {memories.map((memory) => (
+              {memories.map((memory, index) => (
                 <TinderCard
                   key={memory.id}
                   onSwipe={(dir) => handleSwipe(dir, memory)}
                   onCardLeftScreen={(dir) => onCardLeftScreen(dir, memory)}
+                  onSwipeRequirementFulfilled={(dir) => {
+                    setSwipeDirection(dir);
+                    animateHint(dir);
+                  }}
+                  onSwipeRequirementUnfulfilled={() => {
+                    setSwipeDirection(null);
+                    animateHint(null);
+                  }}
                   preventSwipe={['up']}
                   swipeRequirementType="position"
                   swipeThreshold={Math.min(SCREEN_WIDTH * 0.3, 150)}
                   flickOnSwipe={true}>
-                  <View style={styles.card}>
+                  <View style={[
+                    styles.card,
+                    index === 0 && swipeDirection && styles.cardSwiping,
+                    index === 0 && swipeDirection === 'left' && styles.swipingLeft,
+                    index === 0 && swipeDirection === 'right' && styles.swipingRight,
+                    index === 0 && swipeDirection === 'down' && styles.swipingDown,
+                  ]}>
                     {renderMemoryCard(memory)}
-                    <View style={styles.swipeHints}>
-                      <Text style={[styles.swipeHint, styles.swipeLeft]}>← Reject</Text>
-                      <Text style={[styles.swipeHint, styles.swipeDown]}>↓ Skip</Text>
-                      <Text style={[styles.swipeHint, styles.swipeRight]}>Accept →</Text>
-                    </View>
                   </View>
                 </TinderCard>
               ))}
             </View>
           )}
+        </View>
+        
+        <View style={styles.hintContainer}>
+          <Animated.View style={[styles.hint, { opacity: leftOpacity }]}>
+            <Text style={[styles.hintIcon, styles.rejectColor]}>×</Text>
+            <Text style={styles.hintText}>Reject</Text>
+          </Animated.View>
+          <Animated.View style={[styles.hint, { opacity: downOpacity }]}>
+            <Text style={[styles.hintIcon, styles.skipColor]}>↓</Text>
+            <Text style={styles.hintText}>Skip</Text>
+          </Animated.View>
+          <Animated.View style={[styles.hint, { opacity: rightOpacity }]}>
+            <Text style={[styles.hintIcon, styles.acceptColor]}>✓</Text>
+            <Text style={styles.hintText}>Accept</Text>
+          </Animated.View>
         </View>
       </SafeAreaView>
     </View>
@@ -223,27 +304,72 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
-  swipeHints: {
+  hintContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
     position: 'absolute',
-    bottom: 10,
+    bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    zIndex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
   },
-  swipeHint: {
-    fontSize: 12,
-    opacity: 0.7,
+  hint: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 15,
   },
-  swipeLeft: {
-    color: '#F44336', // Red
+  hintIcon: {
+    fontSize: 20,
+    marginBottom: 4,
   },
-  swipeDown: {
-    color: '#FFD700', // Yellow
+  hintText: {
+    fontSize: 11,
+    color: '#888',
+    fontWeight: '400',
   },
-  swipeRight: {
-    color: '#4CAF50', // Green
+  rejectColor: {
+    color: 'rgba(244, 67, 54, 0.6)',
+  },
+  acceptColor: {
+    color: 'rgba(76, 175, 80, 0.6)',
+  },
+  skipColor: {
+    color: 'rgba(255, 215, 0, 0.6)',
+  },
+  cardSwiping: {
+    transform: [{ scale: 1.02 }],
+  },
+  swipingLeft: {
+    borderColor: 'rgba(244, 67, 54, 0.3)',
+    borderWidth: 1,
+  },
+  swipingRight: {
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+    borderWidth: 1,
+  },
+  swipingDown: {
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+    borderWidth: 1,
+  },
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff0000',
+    marginBottom: 10,
+  },
+  retryText: {
+    fontSize: 14,
+    color: '#0000ff',
+    textDecorationLine: 'underline',
   },
 });
 
