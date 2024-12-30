@@ -1,8 +1,3 @@
-#  Custom
-dating/**
-fr/**
-
-
 
 #  Zephyr 
 
@@ -419,4 +414,18 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+
+#  Custom
+dating/**
+fr/**
+
+# Environment variables
+**/.env
+# Keep the template
+!.env.example
+
+# API Keys
+mobile_app/src/config/apiKeys.js
+!mobile_app/src/config/apiKeys.example.js
 
