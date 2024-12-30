@@ -53,14 +53,16 @@ const MemoriesScreen = () => {
   const loadMemories = async () => {
     try {
       const loadedMemories = await getMemories();
-      // Show only new memories that are pending action
+      console.log('Loaded memories:', loadedMemories.length);
+      // Show only new memories
       const newMemories = loadedMemories.filter(m => 
         m.status === MEMORY_STATUS.NEW && 
-        m.state === MEMORY_STATES.PENDING
+        m.state === MEMORY_STATES.NEW
       ).sort((a, b) => 
-        // Sort by timestamp, newest first
-         new Date(b.timestamp) - new Date(a.timestamp)
+        // Sort by datetime, newest first
+        new Date(b.datetime) - new Date(a.datetime)
       );
+      console.log('Filtered new memories:', newMemories.length);
       setMemories(newMemories);
       setCurrentIndex(0);
     } catch (error) {
@@ -80,8 +82,8 @@ const MemoriesScreen = () => {
       
       // Update both state and status
       await updateMemory(currentMemory.id, {
-        state: isAccepted ? MEMORY_STATES.ACCEPTED : MEMORY_STATES.REJECTED,
-        status: MEMORY_STATUS.VIEWED,
+        state: isAccepted ? MEMORY_STATES.REVIEWED : MEMORY_STATES.SKIPPED,
+        status: isAccepted ? MEMORY_STATUS.ACCEPTED : MEMORY_STATUS.REJECTED,
         updatedAt: new Date().toISOString()
       });
       
@@ -100,9 +102,9 @@ const MemoriesScreen = () => {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !isUpdating, // Prevent pan responder while updating
+      onStartShouldSetPanResponder: () => !isUpdating,
       onPanResponderMove: (_, { dx, dy }) => {
-        if (!isUpdating) { // Only allow movement if not updating
+        if (!isUpdating) {
           swipe.setValue({ x: dx, y: dy });
         }
       },
@@ -157,67 +159,32 @@ const MemoriesScreen = () => {
     );
   }
 
-  const renderEventCard = (event) => (
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{event.title}</Text>
-          <Text style={styles.cardType}>{event.category || 'Event'}</Text>
-        </View>
-        <Text style={styles.cardDescription}>{event.description}</Text>
-        
-        <View style={styles.eventDetails}>
-          <Text style={styles.eventTime}>
-            {new Date(event.startDate).toLocaleString()} - 
-            {new Date(event.endDate).toLocaleString()}
-          </Text>
-          {event.location?.placeName && (
-            <Text style={styles.eventLocation}>📍 {event.location.placeName}</Text>
-          )}
-          {event.attendees?.length > 0 && (
-            <Text style={styles.eventAttendees}>
-              👥 {event.attendees.length} attendees
-            </Text>
-          )}
-        </View>
-      </View>
-    );
-
   const renderMemoryCard = (memory) => (
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{memory.title}</Text>
-          <View style={styles.memoryMood}>
-            <Text style={styles.moodText}>{memory.mood}</Text>
-          </View>
-        </View>
-        <Text style={styles.cardDescription}>{memory.content}</Text>
-        
-        {memory.tags && (
-          <View style={styles.tagContainer}>
-            {memory.tags.map((tag, index) => (
-              <Text key={index} style={styles.tag}>#{tag}</Text>
-            ))}
-          </View>
-        )}
-        
-        <View style={styles.memoryDetails}>
-          <Text style={styles.timestamp}>
-            {new Date(memory.timestamp).toLocaleString()}
-          </Text>
-          {memory.location?.placeName && (
-            <Text style={styles.memoryLocation}>📍 {memory.location.placeName}</Text>
-          )}
-        </View>
+    <View style={styles.cardContent}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardTitle}>{memory.title}</Text>
       </View>
-    );
+      <Text style={styles.cardDescription}>{memory.body}</Text>
+      
+      <View style={styles.memoryDetails}>
+        <Text style={styles.timestamp}>
+          {new Date(memory.datetime).toLocaleString()}
+        </Text>
+        {memory.geolocation?.placeName && (
+          <Text style={styles.memoryLocation}>📍 {memory.geolocation.placeName}</Text>
+        )}
+        {memory.attendees?.length > 0 && (
+          <Text style={styles.attendees}>
+            👥 {memory.attendees.join(', ')}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
 
-  const renderCard = (memory, isTop) => {
-    const memoryType = getMemoryType(memory);
-    
-    return (
+  const renderCard = (memory, isTop) => (
       <View style={styles.card}>
-        {memoryType?.id === MEMORY_TYPES.CALENDAR.id ? renderEventCard(memory) : renderMemoryCard(memory)}
-        
+        {renderMemoryCard(memory)}
         {isTop && (
           <>
             <Animated.View style={[styles.overlay, styles.acceptOverlay, { opacity: acceptOpacity }]}>
@@ -230,7 +197,6 @@ const MemoriesScreen = () => {
         )}
       </View>
     );
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -315,68 +281,25 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 10,
   },
-  cardType: {
-    fontSize: 14,
-    color: '#666',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
   cardDescription: {
     fontSize: 16,
     color: '#333',
     marginBottom: 20,
     flex: 1,
   },
-  eventDetails: {
-    marginTop: 'auto',
-    gap: 8,
-  },
-  eventTime: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  eventLocation: {
-    fontSize: 14,
-    color: '#666',
-  },
-  eventAttendees: {
-    fontSize: 14,
-    color: '#666',
-  },
   memoryDetails: {
     marginTop: 'auto',
     gap: 8,
-  },
-  memoryMood: {
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  moodText: {
-    color: '#6200ee',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  tagContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 15,
-  },
-  tag: {
-    fontSize: 14,
-    color: '#6200ee',
-    marginRight: 8,
-    marginBottom: 5,
   },
   timestamp: {
     fontSize: 14,
     color: '#666',
   },
   memoryLocation: {
+    fontSize: 14,
+    color: '#666',
+  },
+  attendees: {
     fontSize: 14,
     color: '#666',
   },

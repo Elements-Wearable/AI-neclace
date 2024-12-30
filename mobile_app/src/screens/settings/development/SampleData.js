@@ -1,6 +1,7 @@
 import React from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { addSampleMemories, clearSampleMemories } from '../../../services/memoriesStorage';
+import styles from '../styles';
 
 export default function SampleData({ generateSampleData, clearSampleData }) {
   const handleSampleMemories = async (action) => {
@@ -61,41 +62,4 @@ export default function SampleData({ generateSampleData, clearSampleData }) {
       </View>
     </>
   );
-}
-
-const styles = StyleSheet.create({
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ccc'
-  },
-  settingLabel: {
-    fontSize: 16,
-    color: '#000'
-  },
-  selector: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8
-  },
-  selectorText: {
-    fontSize: 14,
-    fontWeight: '500'
-  },
-  exportSelector: {
-    backgroundColor: '#E3F2FD'
-  },
-  exportText: {
-    color: '#2196F3'
-  },
-  dangerSelector: {
-    backgroundColor: '#FFEBEE'
-  },
-  dangerText: {
-    color: '#F44336'
-  }
-}); 
+} 
