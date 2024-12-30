@@ -5,7 +5,7 @@ const createSampleMemory = (id, type, data) => ({
   id: `sample_${id}`,
   type: type.id,
   state: MEMORY_STATES.NEW,
-  status: MEMORY_STATUS.ACCEPTED,
+  status: MEMORY_STATUS.NEW,
   ...data
 });
 
