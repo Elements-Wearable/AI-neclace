@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainer } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, StyleSheet, useColorScheme } from 'react-native';
+import SplashScreen from './src/components/SplashScreen';
 import { SETTINGS_KEY, THEME_OPTIONS } from './src/config/constants';
 import logger from './src/utils/logger';
 
@@ -13,6 +14,7 @@ export default function App() {
     tabBarAnimation: true,
     theme: THEME_OPTIONS.SYSTEM,
   });
+  const [isLoading, setIsLoading] = useState(true);
   const systemColorScheme = useColorScheme();
   
   const activeTheme = React.useMemo(() => {
@@ -46,6 +48,10 @@ export default function App() {
       logger.error('Error loading app settings:', error);
     }
   };
+
+  if (isLoading) {
+    return <SplashScreen onComplete={() => setIsLoading(false)} />;
+  }
 
   return (
     <SafeAreaView style={[styles.container, 
