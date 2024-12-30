@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import LanguageModal from '../components/LanguageModal';
 import MaxSpeakersModal from '../components/MaxSpeakersModal';
+import SampleTranscriptsModal from '../components/SampleTranscriptsModal';
+import SampleTranscriptsResultModal from '../components/SampleTranscriptsResultModal';
 import ThemeModal from '../components/ThemeModal';
 import {
   MEMORIES_STORAGE_KEY,
@@ -22,6 +24,7 @@ import {
 } from '../config/constants';
 import { SAMPLE_CONVERSATIONS } from '../config/sampleData';
 import { addSampleMemoriesToExisting, filterOutSampleMemories } from '../config/sampleMemories';
+import { addSampleTranscripts, clearSampleTranscripts, countSampleTranscripts } from '../services/sampleTranscriptsService';
 import logger from '../utils/logger';
 import DevelopmentSettings from './settings/development';
 
@@ -70,6 +73,10 @@ export default function SettingsScreen() {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showMaxSpeakersModal, setShowMaxSpeakersModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showSampleModal, setShowSampleModal] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [sampleAction, setSampleAction] = useState(null);
+  const [sampleResult, setSampleResult] = useState({ success: false, count: 0 });
 
   React.useEffect(() => {
     loadSettings();
@@ -212,14 +219,11 @@ export default function SettingsScreen() {
       const existingMemoriesJson = await AsyncStorage.getItem(MEMORIES_STORAGE_KEY);
       const existingMemories = existingMemoriesJson ? JSON.parse(existingMemoriesJson) : [];
 
-      let updatedMemories;
-      if (action === 'add') {
-        updatedMemories = addSampleMemoriesToExisting(existingMemories);
-        logger.info('Adding sample memories...');
-      } else if (action === 'remove') {
-        updatedMemories = filterOutSampleMemories(existingMemories);
-        logger.info('Removing sample memories...');
-      }
+      const updatedMemories = action === 'add'
+        ? addSampleMemoriesToExisting(existingMemories)
+        : filterOutSampleMemories(existingMemories);
+      
+      logger.info(action === 'add' ? 'Adding sample memories...' : 'Removing sample memories...');
 
       // Save updated memories
       await AsyncStorage.setItem(MEMORIES_STORAGE_KEY, JSON.stringify(updatedMemories));
@@ -289,10 +293,33 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleSampleAction = async (action) => {
+    setSampleAction(action);
+    if (action === 'add') {
+      // For add action, we know the count from SAMPLE_CONVERSATIONS
+      setSampleResult({ count: SAMPLE_CONVERSATIONS.length });
+      setShowSampleModal(true);
+    } else {
+      // For clear action, we need to check existing count
+      const count = await countSampleTranscripts();
+      if (count > 0) {
+        setSampleResult({ count });
+        setShowSampleModal(true);
+      }
+    }
+  };
+
+  const handleSampleConfirm = async () => {
+    setShowSampleModal(false);
+    const result = await (sampleAction === 'add' ? addSampleTranscripts() : clearSampleTranscripts());
+    setSampleResult(result);
+    setShowResultModal(true);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <ScrollView style={styles.content}>
+        <ScrollView style={styles.scrollView}>
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recording</Text>
             
@@ -386,8 +413,8 @@ export default function SettingsScreen() {
             <DevelopmentSettings 
               settings={settings} 
               updateSetting={updateSetting}
-              generateSampleData={generateSampleData}
-              clearSampleData={clearSampleData}
+              generateSampleData={() => handleSampleAction('add')}
+              clearSampleData={() => handleSampleAction('clear')}
               getAllAsyncStorageData={getAllAsyncStorageData}
               manageSampleMemories={manageSampleMemories}
             />
@@ -424,41 +451,55 @@ export default function SettingsScreen() {
           onSelect={(theme) => updateSetting('theme', theme)}
           currentTheme={settings.theme}
         />
+
+        <SampleTranscriptsModal
+          visible={showSampleModal}
+          onClose={() => setShowSampleModal(false)}
+          onConfirm={handleSampleConfirm}
+          action={sampleAction}
+          count={sampleResult.count}
+        />
+
+        <SampleTranscriptsResultModal
+          visible={showResultModal}
+          onClose={() => setShowResultModal(false)}
+          success={sampleResult.success}
+          action={sampleAction}
+          count={sampleResult.count}
+        />
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  safeArea: {
+    flex: 1,
     paddingTop: Platform.OS === 'android' ? 25 : 0,
   },
-  content: {
+  scrollView: {
     flex: 1,
   },
   section: {
-    padding: 20,
+    padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
   },
   settingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingRight: 4,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
   },
   settingLabel: {
     fontSize: 16,
@@ -471,9 +512,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    minWidth: 100,
+    minWidth: 80,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   selectorText: {
     color: '#6200ee',
@@ -481,140 +521,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  resetButtonContainer: {
-    marginTop: 20,
-    marginHorizontal: 20,
-    marginBottom: 30,
-  },
   resetSelector: {
     backgroundColor: 'rgba(220, 53, 69, 0.1)',
-    minWidth: 100,
   },
   resetText: {
     color: '#dc3545',
-  },
-  button: undefined,
-  buttonText: undefined,
-  resetButton: undefined,
-  resetButtonText: undefined,
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  logFilesList: {
-    maxHeight: '70%',
-  },
-  logFileItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    backgroundColor: '#fff',
-  },
-  logFileItemSelected: {
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-  },
-  logFileInfo: {
-    flex: 1,
-  },
-  logFileDate: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  logFileSize: {
-    fontSize: 14,
-    color: '#666',
-  },
-  logFileShareButton: {
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginLeft: 12,
-  },
-  logFileShareText: {
-    color: '#6200ee',
-    fontSize: 14,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
-  },
-  modalButton: {
-    backgroundColor: '#6200ee',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  exportButton: {
-    backgroundColor: '#28a745',
-  },
-  modalButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    backgroundColor: '#fff',
-  },
-  settingContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  settingText: {
-    marginLeft: 15,
-    flex: 1,
-  },
-  settingValue: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  button: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  addButton: {
-    backgroundColor: '#4CAF50',
-  },
-  removeButton: {
-    backgroundColor: '#FF5252',
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: '500',
-  },
+  }
 }); 
