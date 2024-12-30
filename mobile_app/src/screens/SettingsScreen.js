@@ -25,6 +25,7 @@ import {
 import { SAMPLE_CONVERSATIONS } from '../config/sampleData';
 import { addSampleMemoriesToExisting, filterOutSampleMemories } from '../config/sampleMemories';
 import { addSampleTranscripts, clearSampleTranscripts, countSampleTranscripts } from '../services/sampleTranscriptsService';
+
 import logger from '../utils/logger';
 import DevelopmentSettings from './settings/development';
 
@@ -415,6 +416,7 @@ export default function SettingsScreen() {
               updateSetting={updateSetting}
               generateSampleData={() => handleSampleAction('add')}
               clearSampleData={() => handleSampleAction('clear')}
+
               getAllAsyncStorageData={getAllAsyncStorageData}
               manageSampleMemories={manageSampleMemories}
             />
@@ -527,4 +529,5 @@ const styles = StyleSheet.create({
   resetText: {
     color: '#dc3545',
   }
+
 }); 
