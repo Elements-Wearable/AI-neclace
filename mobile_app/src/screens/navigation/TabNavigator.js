@@ -1,15 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import settingsStyles from '../settings/styles';
 
 // Import screens
 import HistoryScreen from '../HistoryScreen';
 import HomeScreen from '../HomeScreen';
-import LiveTranscriptionScreen from '../LiveTranscriptionScreen';
+// import LiveTranscriptionScreen from '../LiveTranscriptionScreen';
 import MemoriesScreen from '../MemoriesScreen';
+// import SummaryScreen from '../SummaryScreen';
+import DeviceScreen from '../DeviceScreen';
 import SettingsScreen from '../SettingsScreen';
-import SummaryScreen from '../SummaryScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -28,19 +31,19 @@ const SCREEN_CONFIG = [
     iconOutline: 'mic-outline',
     isLarge: true,
   },
-  {
+  /*{
     name: 'Live',
     component: LiveTranscriptionScreen,
     iconName: 'radio',
     iconOutline: 'radio-outline',
-  },
+  },*/
   {
     name: 'History',
     component: HistoryScreen,
     iconName: 'time',
     iconOutline: 'time-outline',
   },
-  {
+  /*{
     name: 'Summary',
     component: SummaryScreen,
     iconName: 'document-text',
@@ -51,11 +54,13 @@ const SCREEN_CONFIG = [
     component: SettingsScreen,
     iconName: 'settings',
     iconOutline: 'settings-outline',
-  },
+  },*/
 ];
 
 // TabNavigator component with settings prop
 const TabNavigator = ({ settings }) => {
+  const navigation = useNavigation();
+  
   // Screen options configuration
   const screenOptions = {
     tabBarActiveTintColor: '#6200ee',
@@ -79,7 +84,36 @@ const TabNavigator = ({ settings }) => {
       display: settings.showTabLabels ? 'flex' : 'none',
     },
     tabBarShowLabel: settings.showTabLabels,
-    headerShown: false,
+    headerShown: true,
+    headerStyle: {
+      elevation: 0,
+      shadowOpacity: 0,
+      borderBottomWidth: 0,
+    },
+    headerLeft: () => (
+      <TouchableOpacity 
+        onPress={() => navigation.navigate('Device')}
+        style={settingsStyles.deviceIconContainer}
+      >
+        <Ionicons 
+          name="bluetooth-outline" 
+          style={settingsStyles.deviceIcon} 
+        />
+      </TouchableOpacity>
+    ),
+    headerRight: () => (
+      <TouchableOpacity 
+        onPress={() => navigation.navigate('Settings')}
+        style={settingsStyles.settingsIconContainer}
+      >
+        <Ionicons 
+          name="settings-outline" 
+          style={settingsStyles.settingsIcon} 
+        />
+      </TouchableOpacity>
+    ),
+    headerTitle: '',
+    headerBackground: () => <View style={{ backgroundColor: '#fff' }} />,
   };
 
   // Render tab icon based on screen configuration
@@ -108,6 +142,20 @@ const TabNavigator = ({ settings }) => {
           }}
         />
       ))}
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          tabBarButton: () => null,
+        }}
+      />
+      <Tab.Screen
+        name="Device"
+        component={DeviceScreen}
+        options={{
+          tabBarButton: () => null,
+        }}
+      />
     </Tab.Navigator>
   );
 };
