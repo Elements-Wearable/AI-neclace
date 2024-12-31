@@ -96,7 +96,7 @@ const TabNavigator = ({ settings }) => {
         style={settingsStyles.deviceIconContainer}
       >
         <Ionicons 
-          name="bluetooth-outline" 
+          name="hardware-chip-outline" 
           style={settingsStyles.deviceIcon} 
         />
       </TouchableOpacity>
