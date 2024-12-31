@@ -212,4 +212,19 @@ export default StyleSheet.create({
     marginTop: 8,
     marginBottom: 4,
   },
+  // Settings Icon Styles
+  settingsIconContainer: {
+    marginRight: 15,
+  },
+  settingsIcon: {
+    color: '#6200ee',
+    fontSize: 24,
+  },
+  deviceIconContainer: {
+    marginLeft: 15,
+  },
+  deviceIcon: {
+    color: '#6200ee',
+    fontSize: 24,
+  },
 }); 
