@@ -1,10 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Dimensions, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Dimensions, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TinderCard from 'react-tinder-card';
 import { MEMORY_STATES, MEMORY_STATUS, MEMORY_TYPES } from '../config/memoryConstants';
 import { getMemories, updateMemory } from '../services/memoriesStorage';
+import { memoriesStyles } from '../styles/screens/memoriesScreen';
 
 // Helper function to check memory type
 const getMemoryType = (memory) => {
@@ -132,22 +133,22 @@ const MemoriesScreen = () => {
   };
 
   const renderMemoryCard = (memory) => (
-    <View style={styles.cardContent}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{memory.title || 'Untitled Memory'}</Text>
-        <Text style={styles.cardType}>{getMemoryType(memory)?.label || 'Memory'}</Text>
+    <View style={memoriesStyles.cardContent}>
+      <View style={memoriesStyles.cardHeader}>
+        <Text style={memoriesStyles.cardTitle}>{memory.title || 'Untitled Memory'}</Text>
+        <Text style={memoriesStyles.cardType}>{getMemoryType(memory)?.label || 'Memory'}</Text>
       </View>
-      <Text style={styles.cardDescription}>{memory.body || 'No description available'}</Text>
+      <Text style={memoriesStyles.cardDescription}>{memory.body || 'No description available'}</Text>
       
-      <View style={styles.memoryDetails}>
-        <Text style={styles.timestamp}>
+      <View style={memoriesStyles.memoryDetails}>
+        <Text style={memoriesStyles.timestamp}>
           {memory.datetime ? new Date(memory.datetime).toLocaleString() : 'No date'}
         </Text>
         {memory.geolocation?.placeName && (
-          <Text style={styles.memoryLocation}>📍 {memory.geolocation.placeName}</Text>
+          <Text style={memoriesStyles.memoryLocation}>📍 {memory.geolocation.placeName}</Text>
         )}
         {memory.attendees?.length > 0 && (
-          <Text style={styles.attendees}>
+          <Text style={memoriesStyles.attendees}>
             👥 {memory.attendees.length} {memory.attendees.length === 1 ? 'person' : 'people'}
           </Text>
         )}
@@ -156,20 +157,20 @@ const MemoriesScreen = () => {
   );
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.cardContainer}>
+    <View style={memoriesStyles.container}>
+      <SafeAreaView style={memoriesStyles.safeArea}>
+        <View style={memoriesStyles.cardContainer}>
           {isLoading ? (
             <ActivityIndicator size="large" color="#0000ff" />
           ) : error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-              <Text style={styles.retryText} onPress={loadMemories}>Tap to retry</Text>
+            <View style={memoriesStyles.errorContainer}>
+              <Text style={memoriesStyles.errorText}>{error}</Text>
+              <Text style={memoriesStyles.retryText} onPress={loadMemories}>Tap to retry</Text>
             </View>
           ) : memories.length === 0 ? (
-            <Text style={styles.noMemoriesText}>No more memories to review</Text>
+            <Text style={memoriesStyles.noMemoriesText}>No more memories to review</Text>
           ) : (
-            <View style={styles.cardsWrapper}>
+            <View style={memoriesStyles.cardsWrapper}>
               {memories.map((memory, index) => (
                 <TinderCard
                   key={memory.id}
@@ -188,11 +189,11 @@ const MemoriesScreen = () => {
                   swipeThreshold={Math.min(SCREEN_WIDTH * 0.3, 150)}
                   flickOnSwipe={true}>
                   <View style={[
-                    styles.card,
-                    index === 0 && swipeDirection && styles.cardSwiping,
-                    index === 0 && swipeDirection === 'left' && styles.swipingLeft,
-                    index === 0 && swipeDirection === 'right' && styles.swipingRight,
-                    index === 0 && swipeDirection === 'down' && styles.swipingDown,
+                    memoriesStyles.card,
+                    index === 0 && swipeDirection && memoriesStyles.cardSwiping,
+                    index === 0 && swipeDirection === 'left' && memoriesStyles.swipingLeft,
+                    index === 0 && swipeDirection === 'right' && memoriesStyles.swipingRight,
+                    index === 0 && swipeDirection === 'down' && memoriesStyles.swipingDown,
                   ]}>
                     {renderMemoryCard(memory)}
                   </View>
@@ -202,175 +203,23 @@ const MemoriesScreen = () => {
           )}
         </View>
         
-        <View style={styles.hintContainer}>
-          <Animated.View style={[styles.hint, { opacity: leftOpacity }]}>
-            <Text style={[styles.hintIcon, styles.rejectColor]}>×</Text>
-            <Text style={styles.hintText}>Reject</Text>
+        <View style={memoriesStyles.hintContainer}>
+          <Animated.View style={[memoriesStyles.hint, { opacity: leftOpacity }]}>
+            <Text style={[memoriesStyles.hintIcon, memoriesStyles.rejectColor]}>×</Text>
+            <Text style={memoriesStyles.hintText}>Reject</Text>
           </Animated.View>
-          <Animated.View style={[styles.hint, { opacity: downOpacity }]}>
-            <Text style={[styles.hintIcon, styles.skipColor]}>↓</Text>
-            <Text style={styles.hintText}>Skip</Text>
+          <Animated.View style={[memoriesStyles.hint, { opacity: downOpacity }]}>
+            <Text style={[memoriesStyles.hintIcon, memoriesStyles.skipColor]}>↓</Text>
+            <Text style={memoriesStyles.hintText}>Skip</Text>
           </Animated.View>
-          <Animated.View style={[styles.hint, { opacity: rightOpacity }]}>
-            <Text style={[styles.hintIcon, styles.acceptColor]}>✓</Text>
-            <Text style={styles.hintText}>Accept</Text>
+          <Animated.View style={[memoriesStyles.hint, { opacity: rightOpacity }]}>
+            <Text style={[memoriesStyles.hintIcon, memoriesStyles.acceptColor]}>✓</Text>
+            <Text style={memoriesStyles.hintText}>Accept</Text>
           </Animated.View>
         </View>
       </SafeAreaView>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    overflow: 'hidden',
-  },
-  safeArea: {
-    flex: 1,
-  },
-  cardContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardsWrapper: {
-    width: CARD_WIDTH,
-    height: CARD_WIDTH * 1.5,
-    position: 'relative',
-  },
-  card: {
-    position: 'absolute',
-    width: CARD_WIDTH,
-    height: CARD_WIDTH * 1.5,
-    backgroundColor: 'white',
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  cardContent: {
-    flex: 1,
-    padding: 15,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    flex: 1,
-    marginRight: 10,
-  },
-  cardDescription: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 20,
-    flex: 1,
-  },
-  memoryDetails: {
-    marginTop: 'auto',
-    gap: 8,
-  },
-  timestamp: {
-    fontSize: 14,
-    color: '#666',
-  },
-  memoryLocation: {
-    fontSize: 14,
-    color: '#666',
-  },
-  attendees: {
-    fontSize: 14,
-    color: '#666',
-  },
-  noMemoriesText: {
-    fontSize: 18,
-    color: '#666',
-  },
-  cardType: {
-    fontSize: 14,
-    color: '#666',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  hintContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-  },
-  hint: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 15,
-  },
-  hintIcon: {
-    fontSize: 20,
-    marginBottom: 4,
-  },
-  hintText: {
-    fontSize: 11,
-    color: '#888',
-    fontWeight: '400',
-  },
-  rejectColor: {
-    color: 'rgba(244, 67, 54, 0.6)',
-  },
-  acceptColor: {
-    color: 'rgba(76, 175, 80, 0.6)',
-  },
-  skipColor: {
-    color: 'rgba(255, 215, 0, 0.6)',
-  },
-  cardSwiping: {
-    transform: [{ scale: 1.02 }],
-  },
-  swipingLeft: {
-    borderColor: 'rgba(244, 67, 54, 0.3)',
-    borderWidth: 1,
-  },
-  swipingRight: {
-    borderColor: 'rgba(76, 175, 80, 0.3)',
-    borderWidth: 1,
-  },
-  swipingDown: {
-    borderColor: 'rgba(255, 215, 0, 0.3)',
-    borderWidth: 1,
-  },
-  errorContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#ff0000',
-    marginBottom: 10,
-  },
-  retryText: {
-    fontSize: 14,
-    color: '#0000ff',
-    textDecorationLine: 'underline',
-  },
-});
 
 export default MemoriesScreen; 
