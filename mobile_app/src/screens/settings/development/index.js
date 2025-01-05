@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
+import { API_KEYS, hasApiKey } from '../../../services/secureStorage';
 import logger from '../../../utils/logger';
 import LogFilesModal from '../LogFilesModal';
+import styles from '../styles';
+import ApiKeys from './ApiKeys';
 import DatabaseExport from './DatabaseExport';
 import DebugMode from './DebugMode';
 import LogExport from './LogExport';
@@ -20,6 +23,26 @@ export default function DevelopmentSettings({
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [availableLogs, setAvailableLogs] = useState([]);
   const [showDevMenu, setShowDevMenu] = useState(false);
+
+  // Check API keys when dev menu becomes visible
+  React.useEffect(() => {
+    if (showDevMenu) {
+      const checkApiKeys = async () => {
+        try {
+          logger.debug('Checking API keys on dev menu open');
+          const hasDeepgram = await hasApiKey(API_KEYS.DEEPGRAM);
+          const hasOpenAI = await hasApiKey(API_KEYS.OPENAI);
+          logger.info('API keys status check:', {
+            deepgram: hasDeepgram ? 'configured' : 'not set',
+            openai: hasOpenAI ? 'configured' : 'not set'
+          });
+        } catch (error) {
+          logger.error('Error checking API keys:', error);
+        }
+      };
+      checkApiKeys();
+    }
+  }, [showDevMenu]);
 
   const handleVersionPress = () => {
     const newCount = versionTaps + 1;
@@ -50,6 +73,12 @@ export default function DevelopmentSettings({
       {showDevMenu && (
         <>
           <DebugMode settings={settings} updateSetting={updateSetting} />
+          
+          <View style={styles.apiKeySection}>
+            <Text style={styles.apiKeyTitle}>API Configuration</Text>
+            <ApiKeys />
+          </View>
+
           <SampleData 
             generateSampleData={generateSampleData}
             clearSampleData={clearSampleData}

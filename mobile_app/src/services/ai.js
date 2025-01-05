@@ -1,5 +1,5 @@
-import { OPENAI_API_KEY } from '../config/constants';
 import { SUMMARY_PROMPTS } from '../config/prompts';
+import { getOpenAIApiKey } from '../services/secureStorage';
 
 export const generateSummary = async (transcriptions) => {
   try {
@@ -24,11 +24,16 @@ export const generateSummary = async (transcriptions) => {
       })
       .join('\n\n');
 
+    const apiKey = await getOpenAIApiKey();
+    if (!apiKey) {
+      throw new Error('OpenAI API key not found. Please set it in settings.');
+    }
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: "gpt-3.5-turbo",
