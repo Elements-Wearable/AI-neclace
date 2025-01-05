@@ -436,15 +436,16 @@ export default function SettingsScreen() {
             />
           </View>
 
-          <TouchableOpacity 
-            style={[settingsStyles.settingRow, settingsStyles.resetButtonContainer]}
-            onPress={resetSettings}
-          >
-            <Text style={settingsStyles.settingLabel}>Reset All Settings</Text>
-            <View style={[settingsStyles.selector, settingsStyles.resetSelector]}>
-              <Text style={[settingsStyles.selectorText, settingsStyles.resetText]}>Reset</Text>
+          <View style={settingsStyles.section}>
+            <View style={settingsStyles.settingRow}>
+              <Text style={settingsStyles.settingLabel}>Reset All Settings</Text>
+              <View style={[settingsStyles.selector, settingsStyles.resetSelector]}>
+                <TouchableOpacity onPress={resetSettings}>
+                  <Text style={[settingsStyles.selectorText, settingsStyles.resetText]}>Reset</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </TouchableOpacity>
+          </View>
         </ScrollView>
 
         <LanguageModal

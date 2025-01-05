@@ -1,60 +1,49 @@
 import { StyleSheet } from 'react-native';
+import { colors, components, layout, spacing, typography } from '../../styles/common/theme';
 
 export default StyleSheet.create({
   section: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    ...components.section,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 16,
+    ...typography.subtitle,
+    marginBottom: spacing.lg,
+    color: colors.text.primary,
+    paddingHorizontal: spacing.section.horizontal,
   },
   settingRow: {
-    flexDirection: 'row',
+    ...layout.row,
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingRight: 4,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.section.horizontal,
   },
   settingLabel: {
-    fontSize: 16,
-    color: '#333',
+    ...typography.body,
+    color: colors.text.primary,
     flex: 1,
-    marginRight: 12,
+    paddingRight: spacing.lg,
   },
   selector: {
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    minWidth: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...components.button,
   },
   selectorText: {
-    color: '#6200ee',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
+    ...components.buttonText,
   },
   // Development section specific styles
   developmentSection: {
-    marginTop: 10,
+    marginTop: spacing.lg,
   },
   dangerSelector: {
-    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+    backgroundColor: colors.buttons.error.background,
   },
   dangerText: {
-    color: '#dc3545',
+    color: colors.buttons.error.text,
   },
   exportSelector: {
-    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+    backgroundColor: colors.buttons.secondary.background,
   },
   exportText: {
-    color: '#28a745',
+    color: colors.buttons.secondary.text,
   },
   modalContainer: {
     flex: 1,

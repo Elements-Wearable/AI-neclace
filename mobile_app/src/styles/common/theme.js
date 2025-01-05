@@ -18,6 +18,20 @@ export const colors = {
     hint: '#888',
   },
   border: '#eee',
+  buttons: {
+    primary: {
+      background: '#6200ee',
+      text: '#fff',
+    },
+    secondary: {
+      background: 'rgba(98, 0, 238, 0.1)',
+      text: '#6200ee',
+    },
+    error: {
+      background: 'rgba(220, 53, 69, 0.1)',
+      text: '#dc3545',
+    },
+  },
 };
 
 // Typography
@@ -46,8 +60,18 @@ export const spacing = {
   xs: 4,
   sm: 8,
   md: 12,
-  lg: 15,
+  lg: 16,
   xl: 20,
+  xxl: 24,
+  section: {
+    vertical: 16,
+    horizontal: 12,
+  },
+  button: {
+    minWidth: 110,
+    height: 36,
+    padding: 12,
+  }
 };
 
 // Common layout styles
@@ -76,7 +100,8 @@ export const components = {
     backgroundColor: colors.background,
   },
   section: {
-    padding: spacing.lg,
+    paddingVertical: spacing.section.vertical,
+    paddingHorizontal: spacing.section.horizontal,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -93,15 +118,16 @@ export const components = {
     elevation: 5,
   },
   button: {
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 16,
-    minWidth: 80,
+    backgroundColor: colors.buttons.secondary.background,
+    height: spacing.button.height,
+    paddingHorizontal: spacing.button.padding,
+    borderRadius: spacing.lg,
+    minWidth: spacing.button.minWidth,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonText: {
-    color: colors.primary,
+    color: colors.buttons.secondary.text,
     fontSize: typography.caption.fontSize,
     fontWeight: '500',
     textAlign: 'center',
