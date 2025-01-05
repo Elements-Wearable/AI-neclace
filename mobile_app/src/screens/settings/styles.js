@@ -227,4 +227,38 @@ export default StyleSheet.create({
     color: '#6200ee',
     fontSize: 24,
   },
+  successSelector: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+  },
+  warningSelector: {
+    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+  },
+  successText: {
+    color: '#4CAF50',
+  },
+  warningText: {
+    color: '#FF9800',
+  },
+  apiKeySection: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  apiKeyTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+    marginBottom: 12,
+  },
+  apiKeyStatus: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  apiKeyStatusSet: {
+    color: '#4CAF50',
+  },
+  apiKeyStatusUnset: {
+    color: '#FF9800',
+  }
 }); 

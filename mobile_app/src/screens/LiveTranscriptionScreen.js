@@ -1,6 +1,7 @@
 import { Audio } from 'expo-av';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+    Alert,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -8,7 +9,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { DEEPGRAM_API_KEY } from '../config/constants';
+import { DEEPGRAM_API_KEY, getDeepgramApiKey } from '../config/constants';
 import logger from '../utils/logger';
 
 export default function LiveTranscriptionScreen() {
@@ -31,10 +32,17 @@ export default function LiveTranscriptionScreen() {
   const nextRecording = useRef(null);
 
   // Initialize WebSocket connection with correct audio settings
-  const initializeWebSocket = () => {
+  const initializeWebSocket = async () => {
     try {
       logger.debug('Initializing WebSocket connection...');
       
+      const apiKey = await getDeepgramApiKey();
+      if (!apiKey) {
+        logger.error('Deepgram API key not found');
+        Alert.alert('Error', 'Please set your Deepgram API key in settings');
+        return;
+      }
+
       const options = {
         encoding: 'linear16',
         sample_rate: 16000,
@@ -62,7 +70,7 @@ export default function LiveTranscriptionScreen() {
 
       const ws = new WebSocket(
         `wss://api.deepgram.com/v1/listen?${queryString}`,
-        ['token', DEEPGRAM_API_KEY]
+        ['token', apiKey]
       );
 
       // Add keepAlive mechanism
