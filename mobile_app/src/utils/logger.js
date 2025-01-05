@@ -10,8 +10,8 @@ const state = {
 // Format log message with timestamp
 const formatLogMessage = (level, message, ...args) => {
   const timestamp = new Date().toISOString();
-  const formattedArgs = args.length > 0 
-    ? ' ' + args.map(arg => 
+  const formattedArgs = args.length > 0
+    ? ' ' + args.map(arg =>
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' ')
     : '';
@@ -21,13 +21,13 @@ const formatLogMessage = (level, message, ...args) => {
 // Write to log file
 const writeToFile = async (message) => {
   if (!state.logFilePath || !state.isDebugMode) return;
-  
+
   try {
     const fileInfo = await FileSystem.getInfoAsync(state.logFilePath);
     if (!fileInfo.exists) {
       await FileSystem.writeAsStringAsync(state.logFilePath, '', { encoding: FileSystem.EncodingType.UTF8 });
     }
-    
+
     await FileSystem.writeAsStringAsync(
       state.logFilePath,
       message + '\n',
@@ -43,7 +43,7 @@ const createNewLogFile = async () => {
   const timestamp = new Date().toISOString();
   const sessionId = Math.random().toString(36).substring(7);
   const currentDate = timestamp.split('T')[0];
-  
+
   try {
     // Ensure logs directory exists
     const logsDir = `${FileSystem.documentDirectory}logs`;
@@ -51,7 +51,7 @@ const createNewLogFile = async () => {
     if (!dirInfo.exists) {
       await FileSystem.makeDirectoryAsync(logsDir, { intermediates: true });
     }
-    
+
     // Create new log file path
     state.logFilePath = `${logsDir}/debug_${currentDate}_${sessionId}.log`;
     state.isDebugMode = true;
@@ -62,10 +62,10 @@ const createNewLogFile = async () => {
       '',
       { encoding: FileSystem.EncodingType.UTF8 }
     );
-    
+
     // Write initial message
     await writeToFile(formatLogMessage('DEBUG', 'Debug session started'));
-    
+
     return state.logFilePath;
   } catch (error) {
     console.warn('Failed to create log file:', error);
@@ -89,7 +89,7 @@ const closeCurrentLogFile = async () => {
 // Main logging function
 const log = async (level, message, ...args) => {
   if (!state.isDebugMode) return;
-  
+
   const formattedMessage = formatLogMessage(level, message, ...args);
   console.log(formattedMessage);
   await writeToFile(formattedMessage);
@@ -119,15 +119,15 @@ const getLogFiles = async () => {
           const fileInfo = await FileSystem.getInfoAsync(filePath);
           const content = await FileSystem.readAsStringAsync(filePath);
           const lines = content.split('\n').filter(line => line.trim());
-          
+
           const firstLine = lines[0] || '';
           const lastLine = lines[lines.length - 1] || '';
           const fileDate = file.replace('debug_', '').split('_')[0];
-          
+
           // Extract timestamps
           const startTime = firstLine.match(/\[(.*?)\]/)?.[1] || fileDate;
           const endTime = lastLine.match(/\[(.*?)\]/)?.[1] || fileDate;
-          
+
           return {
             name: file,
             date: fileDate,
@@ -140,7 +140,7 @@ const getLogFiles = async () => {
           };
         })
     );
-    
+
     // Sort by date, newest first
     return logFiles.sort((a, b) => b.date.localeCompare(a.date));
   } catch (error) {
@@ -221,4 +221,4 @@ export default {
   getLogFiles,
   shareLogFile,
   shareMultipleLogFiles
-}; 
+};
