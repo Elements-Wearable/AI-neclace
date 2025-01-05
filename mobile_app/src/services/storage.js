@@ -70,7 +70,7 @@ export const getTranscriptions = async () => {
   try {
     console.log('📖 Getting all transcriptions...');
     const data = await AsyncStorage.getItem(TRANSCRIPTIONS_KEY);
-    console.log('🔍 Raw storage data:', data);
+    // console.log('🔍 Raw storage data:', data);
     
     const parsed = data ? JSON.parse(data) : [];
     console.log('📊 Retrieved transcriptions:', {

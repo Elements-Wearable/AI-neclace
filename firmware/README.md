@@ -1,3 +1,4 @@
+
 AI-Necklace BLE-Peripheral Firmware
 Overview
 This firmware is designed for the nRF52840 microcontroller, configured as a Bluetooth Low Energy (BLE) peripheral. It advertises over BLE, initializes the ADC (Analog-to-Digital Converter), and sends ADC values every 2 seconds using BLE notifications.
@@ -51,4 +52,3 @@ Testing
 Use the nRF Connect for Mobile app (available on iOS and Android) to test the firmware.
 The app acts as a BLE Central device to connect to your board.
 Verify the BLE advertising and check for ADC notifications every 2 seconds.
-
