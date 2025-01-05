@@ -16,19 +16,21 @@ export const settingsStyles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.subtitle,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
     color: colors.text.primary,
+    paddingHorizontal: spacing.section.horizontal,
   },
   settingRow: {
     ...layout.row,
     justifyContent: 'space-between',
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.section.horizontal,
   },
   settingLabel: {
     ...typography.body,
     color: colors.text.primary,
     flex: 1,
-    marginRight: spacing.md,
+    paddingRight: spacing.lg,
   },
   selector: {
     ...components.button,
@@ -37,9 +39,9 @@ export const settingsStyles = StyleSheet.create({
     ...components.buttonText,
   },
   resetSelector: {
-    backgroundColor: colors.errorLight,
+    backgroundColor: colors.buttons.error.background,
   },
   resetText: {
-    color: colors.error,
+    color: colors.buttons.error.text,
   }
 }); 
