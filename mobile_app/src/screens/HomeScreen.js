@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Buffer } from 'buffer';
+import { Asset } from 'expo-asset';
 import { Audio } from 'expo-av';
-import React from 'react';
+import * as FileSystem from 'expo-file-system';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   AppState,
@@ -14,8 +17,7 @@ import {
   View
 } from 'react-native';
 import {
-  CHUNK_DURATION,
-  DEEPGRAM_API_KEY,
+  getDeepgramApiKey,
   SETTINGS_KEY,
   SUPPORTED_LANGUAGES
 } from '../config/constants';
@@ -475,18 +477,34 @@ const styles = StyleSheet.create({
   },
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  testButton: {
+    backgroundColor: 'rgba(98, 0, 238, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  testButtonText: {
+    color: '#6200ee',
+    fontSize: 14,
+    fontWeight: '500',
   },
   clearButton: {
     backgroundColor: 'rgba(220, 53, 69, 0.1)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   clearButtonText: {
     color: '#dc3545',
@@ -591,6 +609,7 @@ export default function HomeScreen({ navigation }) {
   const [showLanguageModal, setShowLanguageModal] = React.useState(false);
   const [appSettings, setAppSettings] = React.useState(null);
   const [settings, setSettings] = React.useState(null);
+  const [isDevelopmentMode, setIsDevelopmentMode] = useState(false);
 
   // Refs
   const recordingInterval = React.useRef(null);
@@ -615,6 +634,20 @@ export default function HomeScreen({ navigation }) {
     };
 
     loadSettings();
+  }, []);
+
+  useEffect(() => {
+    const checkDevelopmentMode = async () => {
+      try {
+        const settings = await getSettings();
+        const devMode = settings?.developmentMode || false;
+        console.log('Development mode:', devMode); // Debug log
+        setIsDevelopmentMode(devMode);
+      } catch (error) {
+        console.error('Error checking development mode:', error);
+      }
+    };
+    checkDevelopmentMode();
   }, []);
 
   // Add summarization function
@@ -668,54 +701,52 @@ export default function HomeScreen({ navigation }) {
   const startRecording = async () => {
     try {
       logger.debug('Starting recording...');
-      console.log('Starting recording setup...');
-      await Audio.requestPermissionsAsync();
       
-      await cleanupRecording();
-      await setupAudioSession();
+      // Request permissions
+      const { granted } = await Audio.requestPermissionsAsync();
+      if (!granted) {
+        throw new Error('Recording permission not granted');
+      }
 
+      // Setup audio session
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      // Create new session ID
       const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       setCurrentSessionId(sessionId);
-      console.log('Created new session:', sessionId);
+      logger.debug('Created new session:', sessionId);
 
-      const newRecording = await setupRecording();
-      console.log('Recording setup complete');
+      // Setup recording with high quality
+      const newRecording = new Audio.Recording();
+      await newRecording.prepareToRecordAsync({
+        android: {
+          extension: '.wav',
+          outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_DEFAULT,
+          audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_DEFAULT,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.wav',
+          outputFormat: Audio.RECORDING_OPTION_IOS_OUTPUT_FORMAT_LINEARPCM,
+          audioQuality: Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_MAX,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+      });
 
       await newRecording.startAsync();
-      logger.info('Recording started successfully');
       setRecording(newRecording);
       setIsRecording(true);
-      
-      // Start the chunk processing interval
-      recordingInterval.current = setInterval(async () => {
-        try {
-          if (!recording) return;
-          console.log('Processing new chunk...');
-          
-          const uri = recording.getURI();
-          if (!uri) {
-            console.log('No URI available yet');
-            return;
-          }
-
-          console.log('Got recording URI:', uri);
-          const currentRecording = recording;
-          
-          // Start new recording before processing current one
-          await startNewRecordingChunk();
-          await currentRecording.stopAndUnloadAsync();
-          
-          // Add to processing queue
-          processingQueue.current.push(uri);
-          setTotalChunks(prev => prev + 1);
-          
-          // Start processing
-          processNextInQueue().catch(console.error);
-          
-        } catch (error) {
-          console.error('Error in recording interval:', error);
-        }
-      }, CHUNK_DURATION);
+      logger.info('Recording started successfully');
 
     } catch (error) {
       logger.error('Error starting recording:', error);
@@ -727,43 +758,34 @@ export default function HomeScreen({ navigation }) {
   const stopRecording = async () => {
     try {
       logger.debug('Stopping recording...');
-      if (!recording) return;
       
-      clearInterval(recordingInterval.current);
-      const uri = recording.getURI();
-      
-      try {
-        if (recording._isDoneRecording === false) {
-          await recording.stopAndUnloadAsync();
-        }
-      } catch (error) {
-        console.log('Recording already stopped:', error);
+      if (!recording) {
+        logger.warn('No recording to stop');
+        return;
       }
+
+      // Stop recording
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      logger.debug('Recording stopped, URI:', uri);
 
       // Reset recording states
-      setRecording(null);
       setIsRecording(false);
-      setIsBackgroundRecording(false);
+      setRecording(null);
 
-      // Add to processing queue if we have a URI and it hasn't been processed
-      if (uri && uri !== lastProcessedUri.current) {
-        lastProcessedUri.current = uri;
-        processingQueue.current.push(uri);
-        setTotalChunks(prev => prev + 1);
-        processNextInQueue().catch(console.error);
+      if (!uri) {
+        throw new Error('No recording URI available');
       }
 
-      // Verify all chunks were stored
-      console.log('🔍 Verifying stored chunks for session:', currentSessionId);
-      await verifyStoredTranscriptions(currentSessionId);
-      
-      setCurrentSessionId(null);
-      logger.info('Recording stopped successfully');
+      // Process the recording
+      await processRecording(uri);
+
     } catch (error) {
       logger.error('Error stopping recording:', error);
-      setRecording(null);
+      Alert.alert('Error', 'Failed to stop recording. Please try again.');
+    } finally {
       setIsRecording(false);
-      setIsBackgroundRecording(false);
+      setRecording(null);
     }
   };
 
@@ -842,104 +864,106 @@ export default function HomeScreen({ navigation }) {
   // Update the processChunkInRealTime function
   const processChunkInRealTime = async (uri) => {
     try {
-      logger.debug('Processing transcription...');
+      logger.debug('Processing transcription...', { uri });
       const settings = await getSettings();
-      console.log('🔧 Processing with settings:', {
-        language: settings.language,
-        audioQuality: settings.highQualityAudio ? 'HIGH' : 'LOW',
-        speakerDetection: settings.autoSpeakerDetection,
-        maxSpeakers: settings.maxSpeakers,
-        smartFormatting: settings.smartFormatting,
-        autoPunctuation: settings.autoPunctuation
-      });
       
-      const response = await fetch('https://api.deepgram.com/v1/listen', {
+      // Get API key
+      const apiKey = await getDeepgramApiKey();
+      if (!apiKey) {
+        throw new Error('Deepgram API key not found. Please set it in settings.');
+      }
+
+      // Read the audio file
+      const audioResponse = await fetch(uri);
+      if (!audioResponse.ok) {
+        throw new Error(`Failed to read audio file: ${audioResponse.status}`);
+      }
+
+      // Get the audio data as a blob
+      const audioBlob = await audioResponse.blob();
+
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        model: 'general',
+        language: settings.language || 'en-US',
+        smart_format: settings.smartFormatting ? 'true' : 'false',
+        punctuate: settings.autoPunctuation ? 'true' : 'false',
+        diarize: settings.autoSpeakerDetection ? 'true' : 'false',
+        utterances: 'true',
+        tier: 'enhanced'
+      }).toString();
+
+      const apiUrl = `https://api.deepgram.com/v1/listen?${queryParams}`;
+      
+      // Send to Deepgram
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Token ${DEEPGRAM_API_KEY}`,
-          'Content-Type': 'audio/wav'
+          'Authorization': `Token ${apiKey}`,
+          'Content-Type': 'audio/m4a'
         },
-        body: await fetch(uri).then(r => r.blob()),
-        query: {
-          language: settings.language,
-          model: 'general',
-          smart_format: settings.smartFormatting,
-          punctuate: settings.autoPunctuation,
-          diarize: settings.autoSpeakerDetection,
-          speakers: settings.maxSpeakers,
-          detect_language: true,
-          detect_topics: true,
-          utterances: true,
-          numerals: true,
-          profanity_filter: true
-        }
+        body: audioBlob
       });
 
-      const data = await response.json();
-      
-      // Extract metadata with settings
-      const metadata = {
-        detectedLanguage: data.results?.detected_language,
-        topics: data.results?.topics || [],
-        wordCount: data.results?.channels[0]?.alternatives[0]?.words?.length || 0,
-        duration: data.metadata?.duration,
-        channels: data.metadata?.channels,
-        sampleRate: data.metadata?.sample_rate,
-        audioFormat: data.metadata?.audio_format,
-        modelUsed: data.metadata?.model_info?.name,
-        modelVersion: data.metadata?.model_info?.version,
-        processingSettings: {
-          language: settings.language,
-          audioQuality: settings.highQualityAudio ? 'HIGH' : 'LOW',
-          speakerDetection: settings.autoSpeakerDetection,
-          maxSpeakers: settings.maxSpeakers,
-          smartFormatting: settings.smartFormatting,
-          autoPunctuation: settings.autoPunctuation,
-          showTabLabels: settings.showTabLabels,
-          tabBarAnimation: settings.tabBarAnimation
-        }
-      };
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Deepgram API error: ${response.status} ${errorText}`);
+      }
 
-      // Format the transcription for display with settings
+      const result = await response.json();
+      
+      if (!result?.results?.channels?.[0]?.alternatives?.[0]) {
+        logger.warn('No transcription results in response');
+        return;
+      }
+
+      const transcriptData = result.results.channels[0].alternatives[0];
+      
+      // Create utterance with complete information
       const utterance = {
         id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        speaker: `Speaker ${data.results?.channels[0]?.alternatives[0]?.speaker || 1}`,
-        speakerId: data.results?.channels[0]?.alternatives[0]?.speaker || 1,
-        text: data.results?.channels[0]?.alternatives[0]?.transcript || '',
-        confidence: data.results?.channels[0]?.alternatives[0]?.confidence || 0,
+        speaker: `Speaker ${transcriptData.speaker || 1}`,
+        speakerId: transcriptData.speaker || 1,
+        text: transcriptData.transcript,
+        confidence: transcriptData.confidence,
+        words: transcriptData.words,
         timestamp: new Date().toISOString(),
-        metadata: metadata,
-        settings: settings // Include full settings with each utterance
+        metadata: {
+          detectedLanguage: result.metadata?.detected_language,
+          duration: result.metadata?.duration,
+          channels: result.metadata?.channels,
+          modelInfo: result.metadata?.model_info
+        }
       };
 
-      console.log('📝 Created utterance with settings:', {
-        id: utterance.id,
-        speaker: utterance.speaker,
-        settingsUsed: settings
-      });
+      logger.debug('Processing transcript:', utterance);
+      
+      if (utterance.text.trim()) {
+        // Update UI with new transcription
+        setTranscription(prev => [...prev, utterance]);
+        setProcessedChunks(prev => prev + 1);
 
-      // Update the UI
-      setTranscription(prev => [...prev, utterance]);
-      setProcessedChunks(prev => prev + 1);
+        // Store transcription data
+        const transcriptionData = {
+          id: utterance.id,
+          sessionId: currentSessionId,
+          timestamp: utterance.timestamp,
+          utterances: [utterance],
+          audioUri: uri,
+          metadata: utterance.metadata,
+          settings
+        };
 
-      // Store with complete metadata and settings
-      const transcriptionData = {
-        id: utterance.id,
-        sessionId: currentSessionId,
-        timestamp: utterance.timestamp,
-        metadata,
-        utterances: [utterance],
-        audioUri: uri,
-        settings: settings,
-        processingSettings: metadata.processingSettings
-      };
-
-      await storeTranscriptionInBackground(transcriptionData);
-      logger.info('Transcription processed successfully');
-      return transcriptionData;
-
+        await storeTranscriptionInBackground(transcriptionData);
+        logger.info('Transcription processed and stored successfully');
+        return transcriptionData;
+      }
     } catch (error) {
-      logger.error('Error processing transcription:', error);
+      logger.error('Error processing transcription:', {
+        error: error.message,
+        stack: error.stack,
+        uri
+      });
       throw error;
     }
   };
@@ -1231,19 +1255,278 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
+  const processTestAudio = async () => {
+    try {
+      logger.debug('Starting test audio processing...');
+      const settings = await getSettings();
+
+      // Get API key
+      const apiKey = await getDeepgramApiKey();
+      if (!apiKey) {
+        throw new Error('Deepgram API key not found. Please set it in settings.');
+      }
+
+      // Create a session ID for this test
+      const testSessionId = `test_session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setCurrentSessionId(testSessionId);
+
+      // Load and prepare the test audio file
+      const asset = await Asset.loadAsync(require('../../assets/file1.wav'));
+      logger.debug('Asset loaded:', asset[0]);
+
+      // Read the file as binary data
+      const fileUri = asset[0].localUri || asset[0].uri;
+      logger.debug('File URI:', fileUri);
+
+      const audioData = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: FileSystem.EncodingType.Base64
+      });
+      logger.debug('Audio data loaded, length:', audioData.length);
+
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        model: 'general',
+        language: settings.language || 'en-US',
+        smart_format: settings.smartFormatting ? 'true' : 'false',
+        punctuate: settings.autoPunctuation ? 'true' : 'false',
+        diarize: settings.autoSpeakerDetection ? 'true' : 'false',
+        utterances: 'true',
+        tier: 'enhanced'
+      }).toString();
+
+      const apiUrl = `https://api.deepgram.com/v1/listen?${queryParams}`;
+      logger.debug('Sending request to:', apiUrl);
+      
+      // Send to Deepgram
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${apiKey}`,
+          'Content-Type': 'audio/wav',
+          'Accept': 'application/json'
+        },
+        body: Buffer.from(audioData, 'base64')
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error('Deepgram API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`Deepgram API error: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+      logger.debug('Deepgram response:', result);
+
+      if (!result?.results?.channels?.[0]?.alternatives?.[0]) {
+        throw new Error('No transcription results in response');
+      }
+
+      const transcriptData = result.results.channels[0].alternatives[0];
+      logger.debug('Transcript data:', transcriptData);
+      
+      // Create utterance
+      const utterance = {
+        id: `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        speaker: `Speaker ${transcriptData.speaker || 1}`,
+        speakerId: transcriptData.speaker || 1,
+        text: transcriptData.transcript,
+        confidence: transcriptData.confidence,
+        words: transcriptData.words,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          detectedLanguage: result.metadata?.detected_language,
+          duration: result.metadata?.duration,
+          channels: result.metadata?.channels,
+          modelInfo: result.metadata?.model_info,
+          isTestAudio: true
+        }
+      };
+
+      // Update UI
+      setTranscription(prev => [...prev, utterance]);
+
+      // Store transcription
+      const transcriptionData = {
+        id: utterance.id,
+        sessionId: testSessionId,
+        timestamp: utterance.timestamp,
+        utterances: [utterance],
+        audioUri: fileUri,
+        metadata: utterance.metadata,
+        settings,
+        isTestAudio: true
+      };
+
+      await storeTranscriptionInBackground(transcriptionData);
+      logger.info('Test audio processed successfully');
+
+    } catch (error) {
+      logger.error('Error processing test audio:', {
+        error: error.message,
+        stack: error.stack
+      });
+      Alert.alert(
+        'Error',
+        `Failed to process test audio: ${error.message}. Check logs for details.`
+      );
+    }
+  };
+
+  // Add new function to process the recording
+  const processRecording = async (uri) => {
+    try {
+      console.log('🎤 Starting to process recording...', { uri });
+      const settings = await getSettings();
+      console.log('⚙️ Settings loaded:', settings);
+      
+      // Get API key
+      const apiKey = await getDeepgramApiKey();
+      console.log('🔑 API key retrieved:', apiKey ? 'Yes' : 'No');
+      if (!apiKey) {
+        throw new Error('Deepgram API key not found');
+      }
+
+      // Read the audio file
+      console.log('📂 Reading audio file...');
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      console.log('📄 File info:', fileInfo);
+
+      // Read file as base64
+      console.log('📥 Loading audio data...');
+      const audioData = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64
+      });
+      console.log('📦 Audio data loaded, length:', audioData.length);
+
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        model: 'general',
+        language: settings.language || 'en-US',
+        smart_format: settings.smartFormatting ? 'true' : 'false',
+        punctuate: settings.autoPunctuation ? 'true' : 'false',
+        diarize: settings.autoSpeakerDetection ? 'true' : 'false',
+        utterances: 'true',
+        tier: 'enhanced'
+      }).toString();
+
+      const apiUrl = `https://api.deepgram.com/v1/listen?${queryParams}`;
+      console.log('🌐 Sending request to Deepgram:', apiUrl);
+
+      // Send to Deepgram
+      console.log('📡 Preparing to send request...');
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${apiKey}`,
+          'Content-Type': 'audio/wav',
+          'Accept': 'application/json'
+        },
+        body: Buffer.from(audioData, 'base64')
+      });
+      console.log('📨 Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Deepgram API error details:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`Deepgram API error: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✨ Deepgram response received:', {
+        hasResults: !!result?.results,
+        hasChannels: !!result?.results?.channels,
+        hasAlternatives: !!result?.results?.channels?.[0]?.alternatives,
+        metadata: result.metadata
+      });
+
+      if (!result?.results?.channels?.[0]?.alternatives?.[0]) {
+        console.error('❌ Invalid response structure:', result);
+        throw new Error('No transcription results in response');
+      }
+
+      const transcriptData = result.results.channels[0].alternatives[0];
+      console.log('📝 Transcript data:', {
+        hasText: !!transcriptData.transcript,
+        confidence: transcriptData.confidence,
+        wordCount: transcriptData.words?.length,
+        transcript: transcriptData.transcript
+      });
+      
+      // Create utterance
+      const utterance = {
+        id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        speaker: `Speaker ${transcriptData.speaker || 1}`,
+        speakerId: transcriptData.speaker || 1,
+        text: transcriptData.transcript,
+        confidence: transcriptData.confidence,
+        words: transcriptData.words,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          detectedLanguage: result.metadata?.detected_language,
+          duration: result.metadata?.duration,
+          channels: result.metadata?.channels,
+          modelInfo: result.metadata?.model_info
+        }
+      };
+      console.log('📋 Created utterance:', utterance);
+
+      // Update UI
+      setTranscription(prev => [...prev, utterance]);
+      console.log('🔄 UI updated with new transcription');
+
+      // Store transcription
+      const transcriptionData = {
+        id: utterance.id,
+        sessionId: currentSessionId,
+        timestamp: utterance.timestamp,
+        utterances: [utterance],
+        audioUri: uri,
+        metadata: utterance.metadata,
+        settings
+      };
+
+      await storeTranscriptionInBackground(transcriptionData);
+      console.log('💾 Recording processed and stored successfully');
+
+    } catch (error) {
+      console.error('❌ Error processing recording:', {
+        message: error.message,
+        stack: error.stack,
+        uri: uri
+      });
+      Alert.alert('Error', `Failed to process recording: ${error.message}`);
+    }
+  };
+
   // Rest of your component code...
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Top Section with Clear Button */}
+        {/* Top Section with Test and Clear Buttons */}
         <View style={styles.topBar}>
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={handleClearAll}
-          >
-            <Text style={styles.clearButtonText}>Clear All</Text>
-          </TouchableOpacity>
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity
+              style={styles.testButton}
+              onPress={processTestAudio}
+            >
+              <Text style={styles.testButtonText}>Test Audio</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={handleClearAll}
+            >
+              <Text style={styles.clearButtonText}>Clear All</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Top Section - Recording Controls */}
@@ -1298,7 +1581,7 @@ export default function HomeScreen({ navigation }) {
             contentContainerStyle={styles.transcriptionContent}
             ref={scrollViewRef}
           >
-            {transcription.map((utterance) => (
+            {[...transcription].reverse().map((utterance) => (
               <TranscriptionCard 
                 key={utterance.id}
                 utterance={utterance}
