@@ -36,7 +36,7 @@ There are two ways to flash the firmware onto the Seeed Studio Xiao nRF52840 Sen
 1. Using a Programmer/Debugger (e.g., J-Link):
 Build the project in vs code,and flash it.
 Ensure your programmer/debugger is properly connected to the board.
-2. Using the .uf2 File:
+2. Using the .uf2 File(Recommended method):
 If you're using the Seeed Studio Xiao nRF52840 Sense, which supports UF2 bootloading:
 
 Build the project in vs code.
