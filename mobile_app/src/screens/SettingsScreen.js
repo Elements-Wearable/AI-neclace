@@ -2,10 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
 import {
     Alert,
-    Platform,
     SafeAreaView,
     ScrollView,
-    StyleSheet,
     Switch,
     Text,
     TouchableOpacity,
@@ -26,7 +24,7 @@ import {
 import { SAMPLE_CONVERSATIONS } from '../config/sampleData';
 import { addSampleMemoriesToExisting, filterOutSampleMemories } from '../config/sampleMemories';
 import { addSampleTranscripts, clearSampleTranscripts, countSampleTranscripts } from '../services/sampleTranscriptsService';
-
+import { settingsStyles } from '../styles/screens/settingsScreen';
 import logger from '../utils/logger';
 import DevelopmentSettings from './settings/development';
 
@@ -321,26 +319,26 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <ScrollView style={styles.scrollView}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recording</Text>
+    <SafeAreaView style={settingsStyles.safeArea}>
+      <View style={settingsStyles.container}>
+        <ScrollView style={settingsStyles.scrollView}>
+          <View style={settingsStyles.section}>
+            <Text style={settingsStyles.sectionTitle}>Recording</Text>
             
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Language</Text>
+            <View style={settingsStyles.settingRow}>
+              <Text style={settingsStyles.settingLabel}>Language</Text>
               <TouchableOpacity
-                style={styles.selector}
+                style={settingsStyles.selector}
                 onPress={() => setShowLanguageModal(true)}
               >
-                <Text style={styles.selectorText}>
+                <Text style={settingsStyles.selectorText}>
                   {SUPPORTED_LANGUAGES.find(l => l.code === settings.language)?.name || 'English'}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>High Quality Audio</Text>
+            <View style={settingsStyles.settingRow}>
+              <Text style={settingsStyles.settingLabel}>High Quality Audio</Text>
               <Switch
                 value={settings.highQualityAudio}
                 onValueChange={(value) => updateSetting('highQualityAudio', value)}
@@ -348,16 +346,16 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Transcription</Text>
+          <View style={settingsStyles.section}>
+            <Text style={settingsStyles.sectionTitle}>Transcription</Text>
             
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Model</Text>
+            <View style={settingsStyles.settingRow}>
+              <Text style={settingsStyles.settingLabel}>Model</Text>
               <TouchableOpacity
-                style={styles.selector}
+                style={settingsStyles.selector}
                 onPress={() => setShowModelModal(true)}
               >
-                <Text style={styles.selectorText}>
+                <Text style={settingsStyles.selectorText}>
                   {settings.model === 'nova-2' ? 'Nova-2' :
                    settings.model === 'nova' ? 'Nova' :
                    settings.model === 'base' ? 'Base' : 'Nova-2'}
@@ -365,34 +363,34 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Auto Speaker Detection</Text>
+            <View style={settingsStyles.settingRow}>
+              <Text style={settingsStyles.settingLabel}>Auto Speaker Detection</Text>
               <Switch
                 value={settings.autoSpeakerDetection}
                 onValueChange={(value) => updateSetting('autoSpeakerDetection', value)}
               />
             </View>
 
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Maximum Speakers</Text>
+            <View style={settingsStyles.settingRow}>
+              <Text style={settingsStyles.settingLabel}>Maximum Speakers</Text>
               <TouchableOpacity
-                style={styles.selector}
+                style={settingsStyles.selector}
                 onPress={() => setShowMaxSpeakersModal(true)}
               >
-                <Text style={styles.selectorText}>{settings.maxSpeakers}</Text>
+                <Text style={settingsStyles.selectorText}>{settings.maxSpeakers}</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Smart Formatting</Text>
+            <View style={settingsStyles.settingRow}>
+              <Text style={settingsStyles.settingLabel}>Smart Formatting</Text>
               <Switch
                 value={settings.smartFormatting}
                 onValueChange={(value) => updateSetting('smartFormatting', value)}
               />
             </View>
 
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Auto Punctuation</Text>
+            <View style={settingsStyles.settingRow}>
+              <Text style={settingsStyles.settingLabel}>Auto Punctuation</Text>
               <Switch
                 value={settings.autoPunctuation}
                 onValueChange={(value) => updateSetting('autoPunctuation', value)}
@@ -400,24 +398,24 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Interface</Text>
+          <View style={settingsStyles.section}>
+            <Text style={settingsStyles.sectionTitle}>Interface</Text>
             
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Theme</Text>
+            <View style={settingsStyles.settingRow}>
+              <Text style={settingsStyles.settingLabel}>Theme</Text>
               <TouchableOpacity
-                style={styles.selector}
+                style={settingsStyles.selector}
                 onPress={() => setShowThemeModal(true)}
               >
-                <Text style={styles.selectorText}>
+                <Text style={settingsStyles.selectorText}>
                   {settings.theme === THEME_OPTIONS.LIGHT ? 'Light' :
                    settings.theme === THEME_OPTIONS.DARK ? 'Dark' : 'System'}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Show Tab Labels</Text>
+            <View style={settingsStyles.settingRow}>
+              <Text style={settingsStyles.settingLabel}>Show Tab Labels</Text>
               <Switch
                 value={settings.showTabLabels}
                 onValueChange={(value) => updateSetting('showTabLabels', value)}
@@ -425,8 +423,8 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Development</Text>
+          <View style={settingsStyles.section}>
+            <Text style={settingsStyles.sectionTitle}>Development</Text>
             
             <DevelopmentSettings 
               settings={settings} 
@@ -439,12 +437,12 @@ export default function SettingsScreen() {
           </View>
 
           <TouchableOpacity 
-            style={[styles.settingRow, styles.resetButtonContainer]}
+            style={[settingsStyles.settingRow, settingsStyles.resetButtonContainer]}
             onPress={resetSettings}
           >
-            <Text style={styles.settingLabel}>Reset All Settings</Text>
-            <View style={[styles.selector, styles.resetSelector]}>
-              <Text style={[styles.selectorText, styles.resetText]}>Reset</Text>
+            <Text style={settingsStyles.settingLabel}>Reset All Settings</Text>
+            <View style={[settingsStyles.selector, settingsStyles.resetSelector]}>
+              <Text style={[settingsStyles.selectorText, settingsStyles.resetText]}>Reset</Text>
             </View>
           </TouchableOpacity>
         </ScrollView>
@@ -495,62 +493,4 @@ export default function SettingsScreen() {
       </View>
     </SafeAreaView>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  safeArea: {
-    flex: 1,
-    paddingTop: Platform.OS === 'android' ? 25 : 0,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  section: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  settingLabel: {
-    fontSize: 16,
-    color: '#333',
-    flex: 1,
-    marginRight: 12,
-  },
-  selector: {
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  selectorText: {
-    color: '#6200ee',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  resetSelector: {
-    backgroundColor: 'rgba(220, 53, 69, 0.1)',
-  },
-  resetText: {
-    color: '#dc3545',
-  }
-
-}); 
+} 

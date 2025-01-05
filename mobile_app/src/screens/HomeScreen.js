@@ -8,10 +8,8 @@ import {
   Alert,
   AppState,
   Modal,
-  Platform,
   SafeAreaView,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View
@@ -22,496 +20,8 @@ import {
   SUPPORTED_LANGUAGES
 } from '../config/constants';
 import * as storage from '../services/storage';
+import { homeStyles } from '../styles/screens/homeScreen';
 import logger from '../utils/logger';
-
-// Styles
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'android' ? 25 : 0, // Add padding for Android
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-  },
-  buttonContainer: {
-    gap: 10,
-  },
-  button: {
-    backgroundColor: '#6200ee',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  recordingButton: {
-    backgroundColor: '#dc3545',
-  },
-  transcriptionContainer: {
-    marginTop: 20,
-    gap: 10,
-  },
-  transcriptionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-  },
-  utteranceContainer: {
-    backgroundColor: '#fff',
-    borderLeftWidth: 4,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  utteranceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  speakerInfo: {
-    flex: 1,
-  },
-  speakerLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  confidenceScore: {
-    fontSize: 12,
-    color: '#666',
-    fontStyle: 'italic',
-  },
-  timeInfo: {
-    alignItems: 'flex-end',
-  },
-  dateLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 2,
-  },
-  timeLabel: {
-    fontSize: 12,
-    color: '#666',
-  },
-  utteranceText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#333',
-  },
-  recordingDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#dc3545',
-    marginRight: 8,
-  },
-  recordingText: {
-    color: '#dc3545',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  historyList: {
-    maxHeight: '85%',
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#6200ee',
-    fontSize: 16,
-  },
-  summaryModal: {
-    backgroundColor: 'white',
-    maxHeight: '70%',
-  },
-  summaryContainer: {
-    flex: 1,
-    marginVertical: 15,
-  },
-  summaryTimestamp: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  summaryStats: {
-    fontSize: 14,
-    color: '#4CAF50',
-    marginBottom: 15,
-    fontWeight: '500',
-  },
-  summaryTextContainer: {
-    maxHeight: 300,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 15,
-  },
-  summaryText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#333',
-  },
-  summaryCloseButton: {
-    backgroundColor: '#4CAF50',
-    marginTop: 20,
-  },
-  errorContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  errorText: {
-    color: '#dc3545',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  processingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    borderRadius: 4,
-    marginTop: 8,
-  },
-  processingText: {
-    marginLeft: 8,
-    color: '#6200ee',
-    fontSize: 14,
-  },
-  disabledButton: {
-    backgroundColor: '#e0e0e0',
-    opacity: 0.7,
-  },
-  taskQueueIndicator: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    padding: 8,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  taskQueueText: {
-    fontSize: 12,
-    color: '#6200ee',
-    marginLeft: 4,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 10,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  statusItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  activeStatus: {
-    color: '#4CAF50',
-    fontWeight: '500',
-  },
-  mainContent: {
-    flex: 1,
-  },
-  transcriptionSection: {
-    flex: 1,
-    maxHeight: '50%', // Limit height
-    marginTop: 20,
-  },
-  buttonsSection: {
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    backgroundColor: '#fff',
-  },
-  historyContainer: {
-    flex: 1,
-    padding: 20,
-  },
-  timelineContainer: {
-    flex: 1,
-  },
-  timelineDate: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    marginBottom: 20,
-  },
-  timelineLine: {
-    width: 2,
-    backgroundColor: '#6200ee',
-    marginRight: 15,
-  },
-  timelineContent: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  timelineTime: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 5,
-  },
-  topSection: {
-    paddingTop: 40,
-    paddingBottom: 20,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  recordButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-    marginBottom: 16,
-  },
-  recordButtonInner: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#6200ee',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
-  },
-  recordDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-  },
-  recordingActive: {
-    backgroundColor: '#dc3545',
-  },
-  recordingDot: {
-    width: 20,
-    height: 20,
-  },
-  transcriptionWrapper: {
-    flex: 1,
-    marginTop: 16,
-  },
-  processingButton: {
-    backgroundColor: '#FFA000', // Orange color for processing state
-  },
-  recordingStatus: {
-    fontSize: 15,
-    color: '#333',
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  processingActive: {
-    backgroundColor: '#2196F3',
-  },
-  processingDot: {
-    width: 20,
-    height: 20,
-    opacity: 0.8,
-  },
-  processingInfo: {
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  processingStatusContainer: {
-    backgroundColor: 'rgba(33, 150, 243, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 150,
-  },
-  processingInfoText: {
-    fontSize: 13,
-    color: '#2196F3',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  processingProgress: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 8,
-    fontWeight: '400',
-  },
-  languageButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  languageButtonText: {
-    color: '#6200ee',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  languageModal: {
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 20,
-    width: '80%',
-    maxHeight: '70%',
-  },
-  languageList: {
-    marginVertical: 15,
-  },
-  languageOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-  },
-  selectedLanguage: {
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-  },
-  languageText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  selectedLanguageText: {
-    color: '#6200ee',
-    fontWeight: '500',
-  },
-  settingsButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    zIndex: 1,
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  settingsButtonText: {
-    fontSize: 24,
-  },
-  metadataContainer: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  metadataLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  topicsContainer: {
-    marginVertical: 4,
-  },
-  topicsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  topicTag: {
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  topicText: {
-    fontSize: 12,
-    color: '#6200ee',
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  testButton: {
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  testButtonText: {
-    color: '#6200ee',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  clearButton: {
-    backgroundColor: 'rgba(220, 53, 69, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  clearButtonText: {
-    color: '#dc3545',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-});
 
 // Helper function
 const formatTime = (seconds) => {
@@ -529,10 +39,10 @@ const getColorForSpeaker = (speakerId) => {
     '#4CAF50',  // Green
     '#ff9800',  // Orange
   ];
-  
+
   if (speakerId === 'system') return '#666666';
   if (speakerId === 'error') return '#dc3545';
-  
+
   // Use modulo to cycle through colors if there are more speakers than colors
   return colors[speakerId % colors.length];
 };
@@ -542,7 +52,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 const processWithRetry = async (fn, maxRetries = 3, delayMs = 1000) => {
   let lastError;
-  
+
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
@@ -570,9 +80,9 @@ const getSettings = async () => {
 const formatDateTime = (timestamp) => {
   const date = new Date(timestamp);
   return {
-    time: date.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    time: date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
     }),
     date: date.toLocaleDateString([], {
       month: 'short',
@@ -654,10 +164,10 @@ export default function HomeScreen({ navigation }) {
   const summarizeTranscriptions = async () => {
     try {
       setIsSummarizing(true);
-      
+
       const allTranscriptions = await storage.getTranscriptions();
       const today = new Date().toDateString();
-      const todaysTranscriptions = allTranscriptions.filter(t => 
+      const todaysTranscriptions = allTranscriptions.filter(t =>
         new Date(t.timestamp).toDateString() === today
       );
 
@@ -680,16 +190,16 @@ export default function HomeScreen({ navigation }) {
     try {
       console.log('Setting up new recording...');
       const settings = await getSettings();
-      
+
       const recording = new Audio.Recording();
-      
+
       // Use high quality setting from settings
-      const recordingOptions = settings.highQualityAudio 
+      const recordingOptions = settings.highQualityAudio
         ? Audio.RecordingOptionsPresets.HIGH_QUALITY
         : Audio.RecordingOptionsPresets.LOW_QUALITY;
-      
+
       await recording.prepareToRecordAsync(recordingOptions);
-      
+
       console.log('Recording prepared with quality:', settings.highQualityAudio ? 'HIGH' : 'LOW');
       return recording;
     } catch (error) {
@@ -701,7 +211,7 @@ export default function HomeScreen({ navigation }) {
   const startRecording = async () => {
     try {
       logger.debug('Starting recording...');
-      
+
       // Request permissions
       const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) {
@@ -758,7 +268,7 @@ export default function HomeScreen({ navigation }) {
   const stopRecording = async () => {
     try {
       logger.debug('Stopping recording...');
-      
+
       if (!recording) {
         logger.warn('No recording to stop');
         return;
@@ -866,7 +376,7 @@ export default function HomeScreen({ navigation }) {
     try {
       logger.debug('Processing transcription...', { uri });
       const settings = await getSettings();
-      
+
       // Get API key
       const apiKey = await getDeepgramApiKey();
       if (!apiKey) {
@@ -894,7 +404,7 @@ export default function HomeScreen({ navigation }) {
       }).toString();
 
       const apiUrl = `https://api.deepgram.com/v1/listen?${queryParams}`;
-      
+
       // Send to Deepgram
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -911,14 +421,14 @@ export default function HomeScreen({ navigation }) {
       }
 
       const result = await response.json();
-      
+
       if (!result?.results?.channels?.[0]?.alternatives?.[0]) {
         logger.warn('No transcription results in response');
         return;
       }
 
       const transcriptData = result.results.channels[0].alternatives[0];
-      
+
       // Create utterance with complete information
       const utterance = {
         id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -937,7 +447,7 @@ export default function HomeScreen({ navigation }) {
       };
 
       logger.debug('Processing transcript:', utterance);
-      
+
       if (utterance.text.trim()) {
         // Update UI with new transcription
         setTranscription(prev => [...prev, utterance]);
@@ -973,12 +483,12 @@ export default function HomeScreen({ navigation }) {
     try {
       console.log('📝 Starting storage process for:', transcriptionData.id);
       await storage.saveTranscription(transcriptionData);
-      
+
       // Verify storage immediately after saving
       const stored = await storage.getTranscriptions();
       const isStored = stored.some(t => t.id === transcriptionData.id);
       console.log('✅ Storage verification:', isStored ? 'Successfully stored' : 'Failed to store');
-      
+
       if (!isStored) {
         console.error('❌ Transcription not found in storage after save attempt');
       }
@@ -992,7 +502,7 @@ export default function HomeScreen({ navigation }) {
   const normalizeUtterances = (utterances) => {
     // Map to track speaker confidence scores
     const speakerConfidenceMap = new Map();
-    
+
     // First pass: collect confidence scores for each speaker
     utterances.forEach(utterance => {
       const speakerId = utterance.speaker;
@@ -1001,11 +511,11 @@ export default function HomeScreen({ navigation }) {
         count: 0,
         words: 0
       };
-      
+
       currentConfidence.totalConfidence += utterance.confidence || 0;
       currentConfidence.count += 1;
       currentConfidence.words += utterance.words?.length || 0;
-      
+
       speakerConfidenceMap.set(speakerId, currentConfidence);
     });
 
@@ -1055,7 +565,7 @@ export default function HomeScreen({ navigation }) {
 
       while (processingQueue.current.length > 0) {
         const uri = processingQueue.current[0]; // Peek at first item
-        
+
         try {
           await processChunkInRealTime(uri);
           processingQueue.current.shift(); // Remove processed item
@@ -1076,10 +586,10 @@ export default function HomeScreen({ navigation }) {
 
     try {
       isProcessingTask.current = true;
-      
+
       while (processingTasks.current.length > 0) {
         const task = processingTasks.current[0]; // Peek at the first task
-        
+
         if (task.type === 'transcription') {
           setIsProcessingChunk(true);
           try {
@@ -1105,7 +615,7 @@ export default function HomeScreen({ navigation }) {
         storedChunks: stored.length,
         trackedChunks: lastStoredChunk.current.size
       });
-      
+
       if (stored.length !== lastStoredChunk.current.size) {
         console.warn('⚠️ Some chunks may not have been stored properly');
         // Optionally retry storage for missing chunks
@@ -1123,16 +633,16 @@ export default function HomeScreen({ navigation }) {
       animationType="slide"
       onRequestClose={() => setShowLanguageModal(false)}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.languageModal}>
-          <Text style={styles.modalTitle}>Select Language</Text>
-          <ScrollView style={styles.languageList}>
+      <View style={homeStyles.modalOverlay}>
+        <View style={homeStyles.languageModal}>
+          <Text style={homeStyles.modalTitle}>Select Language</Text>
+          <ScrollView style={homeStyles.languageList}>
             {SUPPORTED_LANGUAGES.map((lang) => (
               <TouchableOpacity
                 key={lang.code}
                 style={[
-                  styles.languageOption,
-                  selectedLanguage === lang.code && styles.selectedLanguage
+                  homeStyles.languageOption,
+                  selectedLanguage === lang.code && homeStyles.selectedLanguage
                 ]}
                 onPress={() => {
                   setSelectedLanguage(lang.code);
@@ -1140,8 +650,8 @@ export default function HomeScreen({ navigation }) {
                 }}
               >
                 <Text style={[
-                  styles.languageText,
-                  selectedLanguage === lang.code && styles.selectedLanguageText
+                  homeStyles.languageText,
+                  selectedLanguage === lang.code && homeStyles.selectedLanguageText
                 ]}>
                   {lang.name}
                 </Text>
@@ -1149,10 +659,10 @@ export default function HomeScreen({ navigation }) {
             ))}
           </ScrollView>
           <TouchableOpacity
-            style={styles.closeButton}
+            style={homeStyles.closeButton}
             onPress={() => setShowLanguageModal(false)}
           >
-            <Text style={styles.closeButtonText}>Close</Text>
+            <Text style={homeStyles.closeButtonText}>Close</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1162,60 +672,59 @@ export default function HomeScreen({ navigation }) {
   // Update the transcription card UI to show more metadata
   const TranscriptionCard = ({ utterance, metadata }) => {
     const { time, date } = formatDateTime(utterance.timestamp);
-    
-    // Add null check for metadata
+
     if (!metadata) {
       console.warn('Missing metadata for utterance:', utterance.id);
       return null;
     }
-    
+
     return (
-      <View style={styles.utteranceContainer}>
-        <View style={styles.utteranceHeader}>
-          <View style={styles.speakerInfo}>
-            <Text style={styles.speakerLabel}>
+      <View style={homeStyles.utteranceContainer}>
+        <View style={homeStyles.utteranceHeader}>
+          <View style={homeStyles.speakerInfo}>
+            <Text style={homeStyles.speakerLabel}>
               {utterance.speaker}
             </Text>
-            <Text style={styles.confidenceScore}>
+            <Text style={homeStyles.confidenceScore}>
               {Math.round(utterance.confidence * 100)}% confidence
             </Text>
           </View>
-          <View style={styles.timeInfo}>
-            <Text style={styles.dateLabel}>{date}</Text>
-            <Text style={styles.timeLabel}>{time}</Text>
+          <View style={homeStyles.timeInfo}>
+            <Text style={homeStyles.dateLabel}>{date}</Text>
+            <Text style={homeStyles.timeLabel}>{time}</Text>
           </View>
         </View>
-        
-        <Text style={styles.utteranceText}>{utterance.text}</Text>
-        
-        <View style={styles.metadataContainer}>
-          <Text style={styles.metadataLabel}>
+
+        <Text style={homeStyles.utteranceText}>{utterance.text}</Text>
+
+        <View style={homeStyles.metadataContainer}>
+          <Text style={homeStyles.metadataLabel}>
             Language: {metadata.detectedLanguage || 'Not detected'}
           </Text>
           {metadata.topics && metadata.topics.length > 0 && (
-            <View style={styles.topicsContainer}>
-              <Text style={styles.metadataLabel}>Topics:</Text>
-              <View style={styles.topicsList}>
+            <View style={homeStyles.topicsContainer}>
+              <Text style={homeStyles.metadataLabel}>Topics:</Text>
+              <View style={homeStyles.topicsList}>
                 {metadata.topics.map((topic, index) => (
-                  <View key={index} style={styles.topicTag}>
-                    <Text style={styles.topicText}>{topic}</Text>
+                  <View key={index} style={homeStyles.topicTag}>
+                    <Text style={homeStyles.topicText}>{topic}</Text>
                   </View>
                 ))}
               </View>
             </View>
           )}
-          <Text style={styles.metadataLabel}>
+          <Text style={homeStyles.metadataLabel}>
             Words: {metadata.wordCount || 0}
           </Text>
-          <Text style={styles.metadataLabel}>
+          <Text style={homeStyles.metadataLabel}>
             Duration: {(metadata.duration || 0).toFixed(2)}s
           </Text>
           {metadata.processingSettings && (
             <>
-              <Text style={styles.metadataLabel}>
+              <Text style={homeStyles.metadataLabel}>
                 Quality: {metadata.processingSettings.audioQuality || 'Standard'}
               </Text>
-              <Text style={styles.metadataLabel}>
+              <Text style={homeStyles.metadataLabel}>
                 Speaker Detection: {metadata.processingSettings.speakerDetection ? 'ON' : 'OFF'}
               </Text>
             </>
@@ -1296,7 +805,7 @@ export default function HomeScreen({ navigation }) {
 
       const apiUrl = `https://api.deepgram.com/v1/listen?${queryParams}`;
       logger.debug('Sending request to:', apiUrl);
-      
+
       // Send to Deepgram
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -1327,7 +836,7 @@ export default function HomeScreen({ navigation }) {
 
       const transcriptData = result.results.channels[0].alternatives[0];
       logger.debug('Transcript data:', transcriptData);
-      
+
       // Create utterance
       const utterance = {
         id: `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -1382,7 +891,7 @@ export default function HomeScreen({ navigation }) {
       console.log('🎤 Starting to process recording...', { uri });
       const settings = await getSettings();
       console.log('⚙️ Settings loaded:', settings);
-      
+
       // Get API key
       const apiKey = await getDeepgramApiKey();
       console.log('🔑 API key retrieved:', apiKey ? 'Yes' : 'No');
@@ -1459,7 +968,7 @@ export default function HomeScreen({ navigation }) {
         wordCount: transcriptData.words?.length,
         transcript: transcriptData.transcript
       });
-      
+
       // Create utterance
       const utterance = {
         id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -1509,63 +1018,63 @@ export default function HomeScreen({ navigation }) {
   // Rest of your component code...
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+    <SafeAreaView style={homeStyles.safeArea}>
+      <View style={homeStyles.container}>
         {/* Top Section with Test and Clear Buttons */}
-        <View style={styles.topBar}>
-          <View style={styles.buttonGroup}>
+        <View style={homeStyles.topBar}>
+          <View style={homeStyles.buttonGroup}>
             <TouchableOpacity
-              style={styles.testButton}
+              style={homeStyles.testButton}
               onPress={processTestAudio}
             >
-              <Text style={styles.testButtonText}>Test Audio</Text>
+              <Text style={homeStyles.testButtonText}>Test Audio</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.clearButton}
+              style={homeStyles.clearButton}
               onPress={handleClearAll}
             >
-              <Text style={styles.clearButtonText}>Clear All</Text>
+              <Text style={homeStyles.clearButtonText}>Clear All</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Top Section - Recording Controls */}
-        <View style={styles.topSection}>
+        <View style={homeStyles.topSection}>
           <TouchableOpacity
-            style={styles.recordButton}
+            style={homeStyles.recordButton}
             onPress={isRecording ? stopRecording : startRecording}
             disabled={false}
           >
             <View style={[
-              styles.recordButtonInner,
-              isRecording && styles.recordingActive,
-              (!isRecording && isProcessingChunk) && styles.processingActive
+              homeStyles.recordButtonInner,
+              isRecording && homeStyles.recordingActive,
+              (!isRecording && isProcessingChunk) && homeStyles.processingActive
             ]}>
               <View style={[
-                styles.recordDot,
-                isRecording && styles.recordingDot,
-                (!isRecording && isProcessingChunk) && styles.processingDot
+                homeStyles.recordDot,
+                isRecording && homeStyles.recordingDot,
+                (!isRecording && isProcessingChunk) && homeStyles.processingDot
               ]} />
             </View>
           </TouchableOpacity>
-          
-          <Text style={styles.recordingStatus}>
-            {!isRecording && isProcessingChunk 
-              ? 'Processing last recording...' 
-              : isRecording 
-                ? 'Recording...' 
+
+          <Text style={homeStyles.recordingStatus}>
+            {!isRecording && isProcessingChunk
+              ? 'Processing last recording...'
+              : isRecording
+                ? 'Recording...'
                 : 'Tap to Record'
             }
           </Text>
 
           {processingStatus && (
-            <View style={styles.processingInfo}>
-              <View style={styles.processingStatusContainer}>
-                <Text style={styles.processingInfoText}>
+            <View style={homeStyles.processingInfo}>
+              <View style={homeStyles.processingStatusContainer}>
+                <Text style={homeStyles.processingInfoText}>
                   {processingStatus}
                 </Text>
                 {totalChunks > 0 && (
-                  <Text style={styles.processingProgress}>
+                  <Text style={homeStyles.processingProgress}>
                     ({processedChunks}/{totalChunks})
                   </Text>
                 )}
@@ -1575,14 +1084,14 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* Middle Section - Live Transcription */}
-        <View style={styles.transcriptionWrapper}>
-          <ScrollView 
-            style={styles.transcriptionScroll}
-            contentContainerStyle={styles.transcriptionContent}
+        <View style={homeStyles.transcriptionWrapper}>
+          <ScrollView
+            style={homeStyles.transcriptionScroll}
+            contentContainerStyle={homeStyles.transcriptionContent}
             ref={scrollViewRef}
           >
             {[...transcription].reverse().map((utterance) => (
-              <TranscriptionCard 
+              <TranscriptionCard
                 key={utterance.id}
                 utterance={utterance}
                 metadata={utterance.metadata}
@@ -1596,4 +1105,4 @@ export default function HomeScreen({ navigation }) {
       </View>
     </SafeAreaView>
   );
-} 
+}
