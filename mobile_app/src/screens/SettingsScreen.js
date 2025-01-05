@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import LanguageModal from '../components/LanguageModal';
 import MaxSpeakersModal from '../components/MaxSpeakersModal';
+import ModelModal from '../components/ModelModal';
 import SampleTranscriptsModal from '../components/SampleTranscriptsModal';
 import SampleTranscriptsResultModal from '../components/SampleTranscriptsResultModal';
 import ThemeModal from '../components/ThemeModal';
@@ -39,6 +40,7 @@ const defaultSettings = {
   autoPunctuation: true,
   showTabLabels: true,
   theme: THEME_OPTIONS.SYSTEM,
+  model: 'nova-2',
 };
 
 const getAllAsyncStorageData = async () => {
@@ -78,6 +80,7 @@ export default function SettingsScreen() {
   const [showResultModal, setShowResultModal] = useState(false);
   const [sampleAction, setSampleAction] = useState(null);
   const [sampleResult, setSampleResult] = useState({ success: false, count: 0 });
+  const [showModelModal, setShowModelModal] = useState(false);
 
   React.useEffect(() => {
     loadSettings();
@@ -349,6 +352,20 @@ export default function SettingsScreen() {
             <Text style={styles.sectionTitle}>Transcription</Text>
             
             <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Model</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={() => setShowModelModal(true)}
+              >
+                <Text style={styles.selectorText}>
+                  {settings.model === 'nova-2' ? 'Nova-2' :
+                   settings.model === 'nova' ? 'Nova' :
+                   settings.model === 'base' ? 'Base' : 'Nova-2'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingRow}>
               <Text style={styles.settingLabel}>Auto Speaker Detection</Text>
               <Switch
                 value={settings.autoSpeakerDetection}
@@ -451,6 +468,13 @@ export default function SettingsScreen() {
           onClose={() => setShowThemeModal(false)}
           onSelect={(theme) => updateSetting('theme', theme)}
           currentTheme={settings.theme}
+        />
+
+        <ModelModal
+          visible={showModelModal}
+          onClose={() => setShowModelModal(false)}
+          onSelect={(model) => updateSetting('model', model)}
+          currentModel={settings.model}
         />
 
         <SampleTranscriptsModal
