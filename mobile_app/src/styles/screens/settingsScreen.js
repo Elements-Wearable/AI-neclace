@@ -1,58 +1,45 @@
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { colors, components, layout, spacing, typography } from '../common/theme';
 
 export const settingsStyles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#fff',
+    ...components.container,
   },
   safeArea: {
-    flex: 1,
-    paddingTop: Platform.OS === 'android' ? 25 : 0,
+    ...layout.safeArea,
   },
   scrollView: {
-    flex: 1,
+    ...layout.flex,
   },
   section: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    ...components.section,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
+    ...typography.subtitle,
+    marginBottom: spacing.md,
+    color: colors.text.primary,
   },
   settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...layout.row,
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
   settingLabel: {
-    fontSize: 16,
-    color: '#333',
+    ...typography.body,
+    color: colors.text.primary,
     flex: 1,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   selector: {
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    minWidth: 80,
-    alignItems: 'center',
+    ...components.button,
   },
   selectorText: {
-    color: '#6200ee',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
+    ...components.buttonText,
   },
   resetSelector: {
-    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+    backgroundColor: colors.errorLight,
   },
   resetText: {
-    color: '#dc3545',
+    color: colors.error,
   }
 }); 
